@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Quicklocke contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
 import hashlib
@@ -160,4 +162,3 @@ def apply_recipe(
         "writes": len(recipe["writes"]),
         "output": str(destination),
     }
-

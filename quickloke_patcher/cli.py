@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Quicklocke contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
 import argparse
@@ -36,4 +38,3 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
-

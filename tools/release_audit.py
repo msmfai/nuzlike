@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Quicklocke contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
 import argparse
@@ -27,6 +29,12 @@ ALLOWED_ROOTS = {
     ".github", "quickloke_patcher", "recipes", "tests", "tools",
     ".gitignore", "LICENSE", "README.md", "VERSION", "pyproject.toml",
 }
+GPL_MARKERS = (
+    "GNU GENERAL PUBLIC LICENSE",
+    "Version 3, 29 June 2007",
+    "Everyone is permitted to copy and distribute verbatim copies",
+)
+LICENSED_SOURCE_ROOTS = {"quickloke_patcher", "tests", "tools"}
 
 
 def tracked_history(root: Path) -> list[str]:
@@ -81,6 +89,25 @@ def audit(root: Path, include_history: bool) -> list[str]:
         for marker in FORBIDDEN_TEXT:
             if marker.lower() in text.lower():
                 failures.append(f"private marker {marker!r} in {relative}")
+        if (
+            path.suffix == ".py"
+            and relative.parts[0] in LICENSED_SOURCE_ROOTS
+            and "SPDX-License-Identifier: GPL-3.0-or-later" not in text
+        ):
+            failures.append(f"missing GPL-3.0-or-later source notice: {relative}")
+
+    license_path = root / "LICENSE"
+    if not license_path.is_file():
+        failures.append("LICENSE is missing")
+    else:
+        license_text = license_path.read_text(encoding="utf-8")
+        for marker in GPL_MARKERS:
+            if marker not in license_text:
+                failures.append(f"LICENSE is not the complete GPLv3 text: missing {marker!r}")
+
+    pyproject = root / "pyproject.toml"
+    if not pyproject.is_file() or 'license = "GPL-3.0-or-later"' not in pyproject.read_text(encoding="utf-8"):
+        failures.append("pyproject.toml must declare GPL-3.0-or-later")
 
     if not manifest.is_file():
         failures.append("recipes/manifest.json is missing")
