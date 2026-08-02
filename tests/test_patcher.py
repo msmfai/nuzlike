@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Quicklocke contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
 import hashlib
@@ -84,4 +86,3 @@ class PatcherTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

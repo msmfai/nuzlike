@@ -5,6 +5,11 @@ transparent recipe metadata, tests, and release automation. It does not contain
 Pokémon game data, ROM images, saves, decompilation sources, symbols, maps, or
 generated hacked games.
 
+The patcher source is copyright © 2026 Quicklocke contributors and is free
+software under the GNU General Public License, version 3 or (at your option) any
+later version (`GPL-3.0-or-later`). The license covers this original patching
+machinery; it does not grant rights to Pokémon games or other third-party works.
+
 Quicklocke is a gym-gated challenge mode for the main-series Generation I–III
 games. Its design removes wild-battle experience grinding, enforces the next Gym
 Leader's level ceiling, offers paid party catch-up training after each gym, adds
@@ -74,4 +79,3 @@ python3 -m unittest discover -s tests -v
 Quicklocke is an unofficial fan project and is not affiliated with Nintendo,
 Game Freak, Creatures, or The Pokémon Company. No copyrighted game data is
 provided; users must supply their own backups.
-
