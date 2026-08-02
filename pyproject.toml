@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quickloke-patcher"
+version = "0.1.0.dev0"
+description = "ROM-free structured patcher for Quicklocke"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+
+[project.scripts]
+quickloke-patcher = "quickloke_patcher.cli:main"
+
+[tool.setuptools]
+packages = ["quickloke_patcher"]
+
