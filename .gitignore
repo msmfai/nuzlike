@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# This repository distributes patching machinery, never game data or products.
+*.gb
+*.gbc
+*.gba
+*.sav
+*.srm
+*.state
+*.rom
+*.bin
+*.elf
+*.o
+*.map
+*.ips
+*.ups
+*.bps
+*.xdelta
+*.xdelta3
+
