@@ -229,3 +229,19 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running Quicklocke Patcher");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn embeds_one_parseable_recipe_for_every_supported_game() {
+        let manifest = manifest().unwrap();
+        assert_eq!(manifest.releases.len(), manifest.canonical_inputs.len());
+        for release in manifest.releases {
+            let json = embedded_recipe(&release.id, release.recipe.as_deref()).unwrap();
+            let recipe = parse_recipe(&json).unwrap();
+            assert_eq!(recipe_id(&recipe), release.id);
+        }
+    }
+}

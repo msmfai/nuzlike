@@ -1,7 +1,19 @@
 {
   "schema": 1,
   "project": "Quicklocke",
-  "releases": [],
+  "releases": [
+    {"id": "quicklocke-red-dev", "game": "red", "recipe": "red.json"},
+    {"id": "quicklocke-blue-dev", "game": "blue", "recipe": "blue.json"},
+    {"id": "quicklocke-yellow-dev", "game": "yellow", "recipe": "yellow.json"},
+    {"id": "quicklocke-gold-dev", "game": "gold", "recipe": "gold.json"},
+    {"id": "quicklocke-silver-dev", "game": "silver", "recipe": "silver.json"},
+    {"id": "quicklocke-crystal-dev", "game": "crystal", "recipe": "crystal.json"},
+    {"id": "quicklocke-ruby-dev", "game": "ruby", "recipe": "ruby.json"},
+    {"id": "quicklocke-sapphire-dev", "game": "sapphire", "recipe": "sapphire.json"},
+    {"id": "quicklocke-emerald-dev", "game": "emerald", "recipe": "emerald.json"},
+    {"id": "quicklocke-firered-dev", "game": "firered", "recipe": "firered.json"},
+    {"id": "quicklocke-leafgreen-dev", "game": "leafgreen", "recipe": "leafgreen.json"}
+  ],
   "canonical_inputs": {
     "red": "ea9bcae617fdf159b045185467ae58b2e4a48b9a",
     "blue": "d7037c83e1ae5b39bde3c30787637ba1d4c48ce2",
@@ -16,4 +28,3 @@
     "leafgreen": "574fa542ffebb14be69902d1d36f1ec0a4afd71e"
   }
 }
-

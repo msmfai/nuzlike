@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
 import tempfile
+import zlib
 from pathlib import Path
 from typing import Any
 
@@ -54,8 +56,24 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         raise PatchError("accepted_sha1 must be a list of SHA-1 strings")
     if not isinstance(recipe["fingerprints"], list):
         raise PatchError("fingerprints must be a list")
-    if not isinstance(recipe["writes"], list) or not recipe["writes"]:
-        raise PatchError("writes must be a non-empty list")
+    if not isinstance(recipe["writes"], list):
+        raise PatchError("writes must be a list")
+    source_copy = recipe.get("source_copy")
+    if source_copy is not None:
+        if not isinstance(source_copy, dict):
+            raise PatchError("source_copy must be an object")
+        if set(source_copy) != {"encoding", "output_size", "literal_bytes", "operations"}:
+            raise PatchError("source_copy has unsupported or missing fields")
+        if source_copy["encoding"] != "source-copy-v1":
+            raise PatchError("source_copy encoding must be source-copy-v1")
+        _offset(source_copy["output_size"], "source_copy.output_size")
+        _offset(source_copy["literal_bytes"], "source_copy.literal_bytes")
+        if not isinstance(source_copy["operations"], list) or not source_copy["operations"]:
+            raise PatchError("source_copy.operations must be a non-empty list")
+    if not recipe["writes"] and source_copy is None:
+        raise PatchError("recipe must contain writes or source_copy")
+    if recipe["writes"] and source_copy is not None:
+        raise PatchError("recipe cannot combine writes and source_copy")
     configurable = recipe.get("configurable", {})
     if not isinstance(configurable, dict):
         raise PatchError("configurable must be an object")
@@ -177,6 +195,66 @@ def _check_region(data: bytes, entry: dict[str, Any], label: str) -> tuple[int, 
     return offset, expected
 
 
+def _apply_source_copy(original: bytes, patch: dict[str, Any]) -> bytearray:
+    output_size = _offset(patch["output_size"], "source_copy.output_size")
+    if output_size != len(original):
+        raise PatchError("source_copy must preserve the input size")
+    output = bytearray()
+    transformed = 0
+    for index, operation in enumerate(patch["operations"]):
+        label = f"source_copy.operations[{index}]"
+        if not isinstance(operation, dict):
+            raise PatchError(f"{label} must be an object")
+        if set(operation) == {"source_offset", "length"}:
+            offset = _offset(operation["source_offset"], f"{label}.source_offset")
+            length = _offset(operation["length"], f"{label}.length")
+            if length == 0 or offset + length > len(original):
+                raise PatchError(f"{label} has an invalid source range")
+            output.extend(original[offset:offset + length])
+        elif set(operation) in ({"xor_b64"}, {"xor_zlib_b64", "length"}):
+            field = "xor_b64" if "xor_b64" in operation else "xor_zlib_b64"
+            encoded = operation[field]
+            if not isinstance(encoded, str):
+                raise PatchError(f"{label}.{field} must be base64 text")
+            try:
+                delta = base64.b64decode(encoded, validate=True)
+                if field == "xor_zlib_b64":
+                    delta = zlib.decompress(delta)
+            except (ValueError, zlib.error) as error:
+                raise PatchError(f"{label}.{field} is invalid: {error}") from error
+            if field == "xor_zlib_b64":
+                length = _offset(operation["length"], f"{label}.length")
+                if len(delta) != length:
+                    raise PatchError(f"{label} expands to the wrong length")
+            start = len(output)
+            end = start + len(delta)
+            if end > len(original):
+                raise PatchError(f"{label} extends beyond the input")
+            output.extend(
+                value ^ change
+                for value, change in zip(original[start:end], delta, strict=True)
+            )
+            transformed += len(delta)
+        else:
+            raise PatchError(f"{label} has an unsupported operation shape")
+        if len(output) > output_size:
+            raise PatchError("source_copy exceeds its declared output size")
+    if len(output) != output_size:
+        raise PatchError("source_copy does not fill its declared output size")
+    if transformed != patch["literal_bytes"]:
+        raise PatchError("source_copy transformed-byte count does not match its declaration")
+    return output
+
+
+def _repair_cartridge_checksum(output: bytearray, game: str) -> None:
+    if game not in {"red", "blue", "yellow", "gold", "silver", "crystal"}:
+        return
+    if len(output) < 0x150:
+        return
+    checksum = (sum(output[:0x14E]) + sum(output[0x150:])) & 0xFFFF
+    output[0x14E:0x150] = checksum.to_bytes(2, "big")
+
+
 def apply_recipe(
     input_path: str | Path,
     recipe_path: str | Path,
@@ -223,7 +301,8 @@ def apply_recipe(
     for index, fingerprint in enumerate(recipe["fingerprints"]):
         _check_region(original, fingerprint, f"fingerprints[{index}]")
 
-    output = bytearray(original)
+    source_copy = recipe.get("source_copy")
+    output = _apply_source_copy(original, source_copy) if source_copy else bytearray(original)
     occupied: list[tuple[int, int]] = []
     for index, write in enumerate(recipe["writes"]):
         offset, expected = _check_region(original, write, f"writes[{index}]")
@@ -270,6 +349,8 @@ def apply_recipe(
         output[wipe_offset] = wipe_values[configured_wipe_mode]
         wipe_mode_changed = configured_wipe_mode != default_wipe_mode
 
+    _repair_cartridge_checksum(output, recipe["game"])
+
     result = bytes(output)
     output_sha256 = _digest("sha256", result)
     canonical_expected = recipe.get("canonical_output_sha256")
@@ -309,7 +390,7 @@ def apply_recipe(
         "input_sha1": input_sha1,
         "input_kind": "canonical" if canonical else "compatible-modified",
         "output_sha256": output_sha256,
-        "writes": len(recipe["writes"]),
+        "writes": len(recipe["writes"]) if source_copy is None else len(source_copy["operations"]),
         "level_cap_overrides": effective_overrides,
         "wipe_mode": configured_wipe_mode,
         "output": str(destination),

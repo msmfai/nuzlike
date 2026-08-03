@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import base64
 import tempfile
 import unittest
 from pathlib import Path
@@ -74,6 +75,27 @@ class PatcherTests(unittest.TestCase):
         result = apply_recipe(self.input, self.recipe, self.output)
         self.assertEqual(self.output.read_bytes()[40:44], b"RND!")
         self.assertEqual(result["input_kind"], "compatible-modified")
+
+    def test_source_copy_recipe_relocates_and_xors_without_embedding_target(self) -> None:
+        delta = bytes(value ^ replacement for value, replacement in zip(self.data[16:20], b"QLCK"))
+        self.write_recipe(
+            writes=[],
+            source_copy={
+                "encoding": "source-copy-v1",
+                "output_size": len(self.data),
+                "literal_bytes": 4,
+                "operations": [
+                    {"source_offset": 0, "length": 16},
+                    {"xor_b64": base64.b64encode(delta).decode("ascii")},
+                    {"source_offset": 20, "length": 44},
+                ],
+            },
+        )
+        result = apply_recipe(self.input, self.recipe, self.output)
+        expected = bytearray(self.data)
+        expected[16:20] = b"QLCK"
+        self.assertEqual(self.output.read_bytes(), expected)
+        self.assertEqual(result["writes"], 3)
 
     def test_write_site_mismatch_fails_without_output(self) -> None:
         altered = bytearray(self.data)
