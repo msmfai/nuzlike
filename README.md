@@ -75,8 +75,9 @@ all invariant fingerprints still match.
 
 The patcher recognizes the canonical English releases of Red, Blue, Yellow,
 Gold, Silver, Crystal 1.0, Ruby 1.0, Sapphire 1.0, Emerald, FireRed 1.0, and
-LeafGreen 1.0. Recognition does not mean a Quicklocke recipe has shipped yet;
-see `recipes/manifest.json` for the release list.
+LeafGreen 1.0. A ROM-free development recipe is embedded for every listed game;
+see `recipes/manifest.json` for the exact release catalog. These recipes remain
+pre-release until owner playtesting is complete.
 
 ## Repository boundary
 

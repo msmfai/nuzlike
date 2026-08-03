@@ -1,7 +1,10 @@
 // Copyright (C) 2026 Quicklocke contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::Read;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use flate2::read::ZlibDecoder;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
@@ -19,6 +22,28 @@ pub struct Write {
     offset: usize,
     expected_hex: String,
     replacement_hex: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SourceCopyOperation {
+    #[serde(default)]
+    source_offset: Option<usize>,
+    #[serde(default)]
+    length: Option<usize>,
+    #[serde(default)]
+    xor_b64: Option<String>,
+    #[serde(default)]
+    xor_zlib_b64: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SourceCopyPatch {
+    encoding: String,
+    output_size: usize,
+    literal_bytes: usize,
+    operations: Vec<SourceCopyOperation>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,7 +79,10 @@ pub struct Recipe {
     #[serde(default)]
     allow_modified_input: bool,
     fingerprints: Vec<Region>,
+    #[serde(default)]
     writes: Vec<Write>,
+    #[serde(default)]
+    source_copy: Option<SourceCopyPatch>,
     #[serde(default)]
     configurable: Configurable,
     #[serde(default)]
@@ -169,6 +197,105 @@ fn check_region(
     Ok(end)
 }
 
+fn apply_source_copy(original: &[u8], patch: &SourceCopyPatch) -> Result<Vec<u8>, String> {
+    if patch.output_size != original.len() {
+        return Err("source_copy must preserve the input size".into());
+    }
+    let mut output = Vec::with_capacity(patch.output_size);
+    let mut transformed = 0_usize;
+    for (index, operation) in patch.operations.iter().enumerate() {
+        let label = format!("source_copy.operations[{index}]");
+        match (
+            operation.source_offset,
+            operation.length,
+            operation.xor_b64.as_deref(),
+            operation.xor_zlib_b64.as_deref(),
+        ) {
+            (Some(offset), Some(length), None, None) if length > 0 => {
+                let end = offset
+                    .checked_add(length)
+                    .ok_or_else(|| format!("{label} source range overflows"))?;
+                let source = original
+                    .get(offset..end)
+                    .ok_or_else(|| format!("{label} source range exceeds input"))?;
+                output.extend_from_slice(source);
+            }
+            (None, None, Some(encoded), None) => {
+                let delta = BASE64
+                    .decode(encoded)
+                    .map_err(|error| format!("{label}.xor_b64 is invalid: {error}"))?;
+                let start = output.len();
+                let end = start
+                    .checked_add(delta.len())
+                    .ok_or_else(|| format!("{label} range overflows"))?;
+                let source = original
+                    .get(start..end)
+                    .ok_or_else(|| format!("{label} extends beyond input"))?;
+                output.extend(
+                    source
+                        .iter()
+                        .zip(&delta)
+                        .map(|(value, change)| value ^ change),
+                );
+                transformed += delta.len();
+            }
+            (None, Some(length), None, Some(encoded)) => {
+                let compressed = BASE64
+                    .decode(encoded)
+                    .map_err(|error| format!("{label}.xor_zlib_b64 is invalid: {error}"))?;
+                let mut decoder = ZlibDecoder::new(compressed.as_slice());
+                let mut delta = Vec::new();
+                decoder
+                    .read_to_end(&mut delta)
+                    .map_err(|error| format!("{label}.xor_zlib_b64 is invalid: {error}"))?;
+                if delta.len() != length {
+                    return Err(format!("{label} expands to the wrong length"));
+                }
+                let start = output.len();
+                let end = start
+                    .checked_add(delta.len())
+                    .ok_or_else(|| format!("{label} range overflows"))?;
+                let source = original
+                    .get(start..end)
+                    .ok_or_else(|| format!("{label} extends beyond input"))?;
+                output.extend(
+                    source
+                        .iter()
+                        .zip(&delta)
+                        .map(|(value, change)| value ^ change),
+                );
+                transformed += delta.len();
+            }
+            _ => return Err(format!("{label} has an unsupported operation shape")),
+        }
+        if output.len() > patch.output_size {
+            return Err("source_copy exceeds its declared output size".into());
+        }
+    }
+    if output.len() != patch.output_size {
+        return Err("source_copy does not fill its declared output size".into());
+    }
+    if transformed != patch.literal_bytes {
+        return Err("source_copy transformed-byte count does not match its declaration".into());
+    }
+    Ok(output)
+}
+
+fn repair_cartridge_checksum(output: &mut [u8], game: &str) {
+    if !matches!(
+        game,
+        "red" | "blue" | "yellow" | "gold" | "silver" | "crystal"
+    ) || output.len() < 0x150
+    {
+        return;
+    }
+    let checksum = output[..0x14e]
+        .iter()
+        .chain(&output[0x150..])
+        .fold(0_u16, |sum, byte| sum.wrapping_add(u16::from(*byte)));
+    output[0x14e..0x150].copy_from_slice(&checksum.to_be_bytes());
+}
+
 pub fn parse_recipe(json: &str) -> Result<Recipe, String> {
     let recipe: Recipe =
         serde_json::from_str(json).map_err(|error| format!("invalid recipe: {error}"))?;
@@ -184,8 +311,19 @@ pub fn parse_recipe(json: &str) -> Result<Recipe, String> {
     for (index, hash) in recipe.accepted_sha1.iter().enumerate() {
         validate_hash(hash, 40, &format!("accepted_sha1[{index}]"))?;
     }
-    if recipe.writes.is_empty() {
-        return Err("writes must not be empty".into());
+    if recipe.writes.is_empty() && recipe.source_copy.is_none() {
+        return Err("recipe must contain writes or source_copy".into());
+    }
+    if !recipe.writes.is_empty() && recipe.source_copy.is_some() {
+        return Err("recipe cannot combine writes and source_copy".into());
+    }
+    if let Some(patch) = &recipe.source_copy {
+        if patch.encoding != "source-copy-v1" {
+            return Err("source_copy encoding must be source-copy-v1".into());
+        }
+        if patch.operations.is_empty() {
+            return Err("source_copy.operations must not be empty".into());
+        }
     }
     if recipe.allow_modified_input && recipe.fingerprints.is_empty() {
         return Err("modified-input mode requires at least one invariant fingerprint".into());
@@ -314,7 +452,11 @@ pub fn apply(
         )?;
     }
 
-    let mut output = original.to_vec();
+    let mut output = if let Some(patch) = &recipe.source_copy {
+        apply_source_copy(original, patch)?
+    } else {
+        original.to_vec()
+    };
     let mut occupied = Vec::<(usize, usize)>::new();
     for (index, write) in recipe.writes.iter().enumerate() {
         let label = format!("writes[{index}]");
@@ -375,6 +517,8 @@ pub fn apply(
         wipe_mode = Some(selected.to_string());
     }
 
+    repair_cartridge_checksum(&mut output, &recipe.game);
+
     let output_sha256 = digest_sha256(&output);
     if canonical
         && effective_cap_overrides.is_empty()
@@ -400,7 +544,10 @@ pub fn apply(
             }
             .into(),
             output_sha256,
-            writes: recipe.writes.len(),
+            writes: recipe
+                .source_copy
+                .as_ref()
+                .map_or(recipe.writes.len(), |patch| patch.operations.len()),
             level_cap_overrides: effective_cap_overrides,
             wipe_mode,
         },
@@ -478,5 +625,44 @@ mod tests {
     fn rejects_unknown_config_fields_and_modes() {
         assert!(parse_config(r#"{"schema":1,"game":"red","wipe_mode":"soft"}"#).is_err());
         assert!(parse_config(r#"{"schema":1,"game":"red","surprise":true}"#).is_err());
+    }
+
+    #[test]
+    fn source_copy_relocates_and_xors_without_target_literals() {
+        let (data, recipe_json) = fixture();
+        let mut value: serde_json::Value = serde_json::from_str(&recipe_json).unwrap();
+        let delta = data[16..20]
+            .iter()
+            .zip(b"QLCK")
+            .map(|(source, target)| source ^ target)
+            .collect::<Vec<_>>();
+        value["writes"] = serde_json::json!([]);
+        value["source_copy"] = serde_json::json!({
+            "encoding": "source-copy-v1",
+            "output_size": data.len(),
+            "literal_bytes": delta.len(),
+            "operations": [
+                {"source_offset": 0, "length": 16},
+                {"xor_b64": BASE64.encode(delta)},
+                {"source_offset": 20, "length": data.len() - 20}
+            ]
+        });
+        let recipe = parse_recipe(&value.to_string()).unwrap();
+        let result = apply(&recipe, None, &data).unwrap();
+        let mut expected = data;
+        expected[16..20].copy_from_slice(b"QLCK");
+        assert_eq!(result.bytes, expected);
+    }
+
+    #[test]
+    fn repairs_game_boy_global_checksum() {
+        let mut output = (0_u16..0x200).map(|value| value as u8).collect::<Vec<_>>();
+        output[0x14e..0x150].fill(0);
+        let expected = output[..0x14e]
+            .iter()
+            .chain(&output[0x150..])
+            .fold(0_u16, |sum, byte| sum.wrapping_add(u16::from(*byte)));
+        repair_cartridge_checksum(&mut output, "crystal");
+        assert_eq!(&output[0x14e..0x150], &expected.to_be_bytes());
     }
 }
