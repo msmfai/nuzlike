@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Quicklocke Patcher",
+  "version": "0.1.0-dev.0",
+  "identifier": "org.quickloke.patcher",
+  "build": {
+    "beforeDevCommand": "npm run ui:dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run ui:build",
+    "frontendDist": "../ui-dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Quicklocke Patcher",
+        "width": 1040,
+        "height": 760,
+        "minWidth": 700,
+        "minHeight": 560,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Utility",
+    "shortDescription": "Apply Quicklocke to an owned Pokémon game backup",
+    "longDescription": "A ROM-free patcher for all supported Generation I through III Quicklocke ports.",
+    "copyright": "Copyright © 2026 Quicklocke contributors",
+    "license": "GPL-3.0-or-later",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

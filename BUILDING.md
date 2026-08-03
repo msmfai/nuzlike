@@ -1,0 +1,47 @@
+# Building the Quicklocke Patcher
+
+The same application source builds the graphical patcher for every supported
+Generation I–III game. Game recognition and recipe selection happen at runtime;
+there are no game-specific application binaries.
+
+## Supported packages
+
+| Platform | CPU | Output |
+| --- | --- | --- |
+| Android | ARM64, x86-64 | split APKs |
+| Windows | ARM64, x86-64 | NSIS installer |
+| Linux | ARM64, x86-64 | Debian package and AppImage |
+| macOS | Apple Silicon, Intel | application bundle and DMG |
+
+The GitHub Actions workflow builds on the matching native architecture. It
+uploads temporary workflow artifacts for review but does not publish a GitHub
+release. Publishing remains a separate, deliberate step after the owner
+playtest gate.
+
+## Local desktop build
+
+Install Node.js 24, stable Rust, and the system prerequisites for Tauri 2, then:
+
+```sh
+npm ci
+npm run check
+npm run build
+```
+
+Pass `-- --target <rust-target> --bundles <formats>` to select the same target
+and package formats used in `.github/workflows/build-apps.yml`.
+
+## Local Android build
+
+Install Java 17, the Android SDK, and NDK `27.2.12479018`, set `ANDROID_HOME`
+and `NDK_HOME`, and add the Android Rust targets. Then run:
+
+```sh
+npm ci
+npm run android:init -- --ci
+npm run android:build -- --target aarch64 x86_64 --apk --split-per-abi --ci
+```
+
+Release APKs are unsigned until an Android signing identity is configured.
+Neither the application nor its packages contain ROMs, saves, decompilation
+sources, or complete replacement game images.

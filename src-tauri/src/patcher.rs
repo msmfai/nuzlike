@@ -1,0 +1,482 @@
+// Copyright (C) 2026 Quicklocke contributors
+// SPDX-License-Identifier: GPL-3.0-or-later
+use std::collections::{BTreeMap, BTreeSet};
+
+use serde::{Deserialize, Serialize};
+use sha1::{Digest as _, Sha1};
+use sha2::Sha256;
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Region {
+    offset: usize,
+    expected_hex: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Write {
+    offset: usize,
+    expected_hex: String,
+    replacement_hex: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LevelCapSite {
+    id: String,
+    offset: usize,
+    default: u8,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WipeModeSite {
+    offset: usize,
+    default: String,
+    values: BTreeMap<String, u8>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Configurable {
+    level_caps: Vec<LevelCapSite>,
+    wipe_mode: Option<WipeModeSite>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Recipe {
+    schema: u8,
+    id: String,
+    game: String,
+    accepted_sha1: Vec<String>,
+    #[serde(default)]
+    allow_modified_input: bool,
+    fingerprints: Vec<Region>,
+    writes: Vec<Write>,
+    #[serde(default)]
+    configurable: Configurable,
+    #[serde(default)]
+    canonical_output_sha256: Option<String>,
+}
+
+impl Recipe {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct UserConfig {
+    pub schema: u8,
+    pub game: String,
+    #[serde(default)]
+    pub wipe_mode: Option<String>,
+    #[serde(default)]
+    pub level_caps: BTreeMap<String, u8>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PatchReport {
+    pub recipe: String,
+    pub game: String,
+    pub input_sha1: String,
+    pub input_kind: String,
+    pub output_sha256: String,
+    pub writes: usize,
+    pub level_cap_overrides: BTreeMap<String, u8>,
+    pub wipe_mode: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InspectResult {
+    pub size: usize,
+    pub sha1: String,
+    pub sha256: String,
+}
+
+#[derive(Debug)]
+pub struct PatchResult {
+    pub bytes: Vec<u8>,
+    pub report: PatchReport,
+}
+
+fn digest_sha1(data: &[u8]) -> String {
+    format!("{:x}", Sha1::digest(data))
+}
+
+fn digest_sha256(data: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(data))
+}
+
+pub fn inspect(data: &[u8]) -> InspectResult {
+    InspectResult {
+        size: data.len(),
+        sha1: digest_sha1(data),
+        sha256: digest_sha256(data),
+    }
+}
+
+fn parse_hex(value: &str, field: &str) -> Result<Vec<u8>, String> {
+    if value.len() % 2 != 0 {
+        return Err(format!("{field} must be an even-length hexadecimal string"));
+    }
+    let mut output = Vec::with_capacity(value.len() / 2);
+    for index in (0..value.len()).step_by(2) {
+        let byte = u8::from_str_radix(&value[index..index + 2], 16)
+            .map_err(|_| format!("{field} is not valid hexadecimal"))?;
+        output.push(byte);
+    }
+    Ok(output)
+}
+
+fn validate_hash(value: &str, digits: usize, field: &str) -> Result<(), String> {
+    if value.len() != digits || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(format!(
+            "{field} must be a {digits}-digit hexadecimal string"
+        ));
+    }
+    Ok(())
+}
+
+fn check_region(
+    data: &[u8],
+    offset: usize,
+    expected_hex: &str,
+    label: &str,
+) -> Result<usize, String> {
+    let expected = parse_hex(expected_hex, &format!("{label}.expected_hex"))?;
+    let end = offset
+        .checked_add(expected.len())
+        .ok_or_else(|| format!("{label} offset overflows"))?;
+    if end > data.len() {
+        return Err(format!("{label} extends beyond the input"));
+    }
+    if data[offset..end] != expected {
+        let actual = data[offset..end]
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        return Err(format!(
+            "{label} mismatch at 0x{offset:x}: expected {}, got {actual}",
+            expected_hex.to_ascii_lowercase()
+        ));
+    }
+    Ok(end)
+}
+
+pub fn parse_recipe(json: &str) -> Result<Recipe, String> {
+    let recipe: Recipe =
+        serde_json::from_str(json).map_err(|error| format!("invalid recipe: {error}"))?;
+    if recipe.schema != 1 {
+        return Err("recipe must use schema 1".into());
+    }
+    if recipe.id.is_empty() || recipe.game.is_empty() {
+        return Err("recipe id and game must be non-empty".into());
+    }
+    if recipe.accepted_sha1.is_empty() {
+        return Err("accepted_sha1 must not be empty".into());
+    }
+    for (index, hash) in recipe.accepted_sha1.iter().enumerate() {
+        validate_hash(hash, 40, &format!("accepted_sha1[{index}]"))?;
+    }
+    if recipe.writes.is_empty() {
+        return Err("writes must not be empty".into());
+    }
+    if recipe.allow_modified_input && recipe.fingerprints.is_empty() {
+        return Err("modified-input mode requires at least one invariant fingerprint".into());
+    }
+    if let Some(hash) = &recipe.canonical_output_sha256 {
+        validate_hash(hash, 64, "canonical_output_sha256")?;
+    }
+
+    let mut cap_ids = BTreeSet::new();
+    let mut configurable_offsets = BTreeSet::new();
+    for site in &recipe.configurable.level_caps {
+        if site.id.is_empty() || !cap_ids.insert(site.id.as_str()) {
+            return Err(format!(
+                "invalid or duplicate configurable cap id {}",
+                site.id
+            ));
+        }
+        if !(1..=100).contains(&site.default) {
+            return Err(format!(
+                "configurable cap {} default must be 1 through 100",
+                site.id
+            ));
+        }
+        if !configurable_offsets.insert(site.offset) {
+            return Err(format!("duplicate configurable offset 0x{:x}", site.offset));
+        }
+    }
+    if let Some(site) = &recipe.configurable.wipe_mode {
+        if !configurable_offsets.insert(site.offset) {
+            return Err(format!("duplicate configurable offset 0x{:x}", site.offset));
+        }
+        if site
+            .values
+            .keys()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>()
+            != BTreeSet::from(["forgiving", "hardcore"])
+        {
+            return Err("wipe mode must define forgiving and hardcore".into());
+        }
+        if site.values["forgiving"] == site.values["hardcore"] {
+            return Err("wipe mode byte values must be distinct".into());
+        }
+        if !site.values.contains_key(&site.default) {
+            return Err("wipe mode default must be forgiving or hardcore".into());
+        }
+    }
+    Ok(recipe)
+}
+
+pub fn parse_config(json: &str) -> Result<UserConfig, String> {
+    let config: UserConfig =
+        serde_json::from_str(json).map_err(|error| format!("invalid config: {error}"))?;
+    if config.schema != 1 {
+        return Err("config must use schema 1".into());
+    }
+    if config.game.is_empty() {
+        return Err("config game must be non-empty".into());
+    }
+    if let Some(mode) = &config.wipe_mode
+        && mode != "forgiving"
+        && mode != "hardcore"
+    {
+        return Err("config wipe_mode must be 'forgiving' or 'hardcore'".into());
+    }
+    for (id, level) in &config.level_caps {
+        if id.is_empty() || !(1..=100).contains(level) {
+            return Err(format!(
+                "config level_caps.{id} must be an integer from 1 through 100"
+            ));
+        }
+    }
+    Ok(config)
+}
+
+pub fn apply(
+    recipe: &Recipe,
+    config: Option<&UserConfig>,
+    original: &[u8],
+) -> Result<PatchResult, String> {
+    if let Some(config) = config
+        && config.game != recipe.game
+    {
+        return Err(format!("config game must be {:?}", recipe.game));
+    }
+    let cap_overrides = config.map(|value| &value.level_caps);
+    let declared_caps = recipe
+        .configurable
+        .level_caps
+        .iter()
+        .map(|site| (site.id.as_str(), site))
+        .collect::<BTreeMap<_, _>>();
+    if let Some(overrides) = cap_overrides {
+        let unknown = overrides
+            .keys()
+            .filter(|id| !declared_caps.contains_key(id.as_str()))
+            .cloned()
+            .collect::<Vec<_>>();
+        if !unknown.is_empty() {
+            return Err(format!(
+                "config contains caps not declared by this recipe: {}",
+                unknown.join(", ")
+            ));
+        }
+    }
+    if config.and_then(|value| value.wipe_mode.as_ref()).is_some()
+        && recipe.configurable.wipe_mode.is_none()
+    {
+        return Err("config contains wipe_mode but this recipe does not declare it".into());
+    }
+
+    let input_sha1 = digest_sha1(original);
+    let canonical = recipe
+        .accepted_sha1
+        .iter()
+        .any(|hash| hash.eq_ignore_ascii_case(&input_sha1));
+    if !canonical && !recipe.allow_modified_input {
+        return Err(format!("unsupported input SHA-1: {input_sha1}"));
+    }
+    for (index, region) in recipe.fingerprints.iter().enumerate() {
+        check_region(
+            original,
+            region.offset,
+            &region.expected_hex,
+            &format!("fingerprints[{index}]"),
+        )?;
+    }
+
+    let mut output = original.to_vec();
+    let mut occupied = Vec::<(usize, usize)>::new();
+    for (index, write) in recipe.writes.iter().enumerate() {
+        let label = format!("writes[{index}]");
+        let end = check_region(original, write.offset, &write.expected_hex, &label)?;
+        let replacement = parse_hex(&write.replacement_hex, &format!("{label}.replacement_hex"))?;
+        if replacement.len() != end - write.offset {
+            return Err(format!("{label} changes file length"));
+        }
+        if occupied
+            .iter()
+            .any(|(prior_start, prior_end)| write.offset < *prior_end && *prior_start < end)
+        {
+            return Err(format!("{label} overlaps another write"));
+        }
+        occupied.push((write.offset, end));
+        output[write.offset..end].copy_from_slice(&replacement);
+    }
+
+    let mut effective_cap_overrides = BTreeMap::new();
+    for site in &recipe.configurable.level_caps {
+        let generated = output
+            .get_mut(site.offset)
+            .ok_or_else(|| format!("configurable cap {} extends beyond the output", site.id))?;
+        if *generated != site.default {
+            return Err(format!(
+                "configurable cap {} expected generated default {} at 0x{:x}, got {}",
+                site.id, site.default, site.offset, *generated
+            ));
+        }
+        let selected = cap_overrides
+            .and_then(|overrides| overrides.get(&site.id))
+            .copied()
+            .unwrap_or(site.default);
+        *generated = selected;
+        if selected != site.default {
+            effective_cap_overrides.insert(site.id.clone(), selected);
+        }
+    }
+
+    let mut wipe_mode = None;
+    let mut wipe_mode_changed = false;
+    if let Some(site) = &recipe.configurable.wipe_mode {
+        let generated = output
+            .get_mut(site.offset)
+            .ok_or_else(|| "configurable wipe mode extends beyond the output".to_string())?;
+        let default_byte = site.values[&site.default];
+        if *generated != default_byte {
+            return Err(format!(
+                "configurable wipe mode expected generated default {} ({default_byte}) at 0x{:x}, got {}",
+                site.default, site.offset, *generated
+            ));
+        }
+        let selected = config
+            .and_then(|value| value.wipe_mode.as_deref())
+            .unwrap_or(&site.default);
+        *generated = site.values[selected];
+        wipe_mode_changed = selected != site.default;
+        wipe_mode = Some(selected.to_string());
+    }
+
+    let output_sha256 = digest_sha256(&output);
+    if canonical
+        && effective_cap_overrides.is_empty()
+        && !wipe_mode_changed
+        && let Some(expected) = &recipe.canonical_output_sha256
+        && !expected.eq_ignore_ascii_case(&output_sha256)
+    {
+        return Err(format!(
+            "canonical output verification failed: expected {expected}, got {output_sha256}"
+        ));
+    }
+
+    Ok(PatchResult {
+        bytes: output,
+        report: PatchReport {
+            recipe: recipe.id.clone(),
+            game: recipe.game.clone(),
+            input_sha1,
+            input_kind: if canonical {
+                "canonical"
+            } else {
+                "compatible-modified"
+            }
+            .into(),
+            output_sha256,
+            writes: recipe.writes.len(),
+            level_cap_overrides: effective_cap_overrides,
+            wipe_mode,
+        },
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fixture() -> (Vec<u8>, String) {
+        let mut data = (0_u8..64).collect::<Vec<_>>();
+        data[22] = 0;
+        let recipe = serde_json::json!({
+            "schema": 1,
+            "id": "test-red-1",
+            "game": "red",
+            "accepted_sha1": [digest_sha1(&data)],
+            "allow_modified_input": true,
+            "fingerprints": [{"offset": 0, "expected_hex": "00010203"}],
+            "writes": [{
+                "offset": 16,
+                "expected_hex": "10111213",
+                "replacement_hex": "a0a1a2a3"
+            }],
+            "configurable": {
+                "level_caps": [
+                    {"id": "brock", "offset": 20, "default": 20},
+                    {"id": "misty", "offset": 21, "default": 21}
+                ],
+                "wipe_mode": {
+                    "offset": 22,
+                    "default": "forgiving",
+                    "values": {"forgiving": 0, "hardcore": 1}
+                }
+            }
+        });
+        (data, recipe.to_string())
+    }
+
+    #[test]
+    fn patches_caps_and_hardcore_mode_without_touching_other_bytes() {
+        let (data, recipe_json) = fixture();
+        let recipe = parse_recipe(&recipe_json).unwrap();
+        let config = parse_config(
+            r#"{
+            "schema":1,"game":"red","wipe_mode":"hardcore",
+            "level_caps":{"brock":13,"misty":20}
+        }"#,
+        )
+        .unwrap();
+        let result = apply(&recipe, Some(&config), &data).unwrap();
+        let mut expected = data;
+        expected[16..20].copy_from_slice(&[0xa0, 0xa1, 0xa2, 0xa3]);
+        expected[20] = 13;
+        expected[21] = 20;
+        expected[22] = 1;
+        assert_eq!(result.bytes, expected);
+        assert_eq!(result.report.wipe_mode.as_deref(), Some("hardcore"));
+    }
+
+    #[test]
+    fn rejects_modified_write_sites() {
+        let (mut data, recipe_json) = fixture();
+        let recipe = parse_recipe(&recipe_json).unwrap();
+        data[16] = 0xff;
+        assert!(
+            apply(&recipe, None, &data)
+                .unwrap_err()
+                .contains("writes[0] mismatch")
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_config_fields_and_modes() {
+        assert!(parse_config(r#"{"schema":1,"game":"red","wipe_mode":"soft"}"#).is_err());
+        assert!(parse_config(r#"{"schema":1,"game":"red","surprise":true}"#).is_err());
+    }
+}
