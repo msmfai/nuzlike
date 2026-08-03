@@ -6,6 +6,13 @@ __pycache__/
 .venv/
 build/
 dist/
+.npm/
+.toolchains/
+node_modules/
+ui-dist/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/icons/
 
 # This repository distributes patching machinery, never game data or products.
 *.gb
@@ -24,4 +31,3 @@ dist/
 *.bps
 *.xdelta
 *.xdelta3
-

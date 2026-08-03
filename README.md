@@ -17,14 +17,20 @@ the Championship, offers paid Gym training, and preserves randomizer-owned data.
 
 ## Current status
 
-The patcher and its safety contract are implemented. There is not yet a gameplay
-release recipe; recipes will be published here only after the corresponding game
-port passes private build, behavior, randomizer-preservation, and release audits.
+The patch engine and its safety contract are implemented, but the graphical app
+is not yet usable for real games: the repository currently contains no gameplay
+recipes. The existing private ROM builds still need to be converted into the
+ROM-free structured recipes consumed by this application.
 
 ## Use
 
-Python 3.11 or newer is required. Apply a published recipe to your own legally
-obtained backup:
+The graphical application is the primary patcher. A single build recognizes all
+11 supported games, presents the appropriate cap defaults and wipe rule, and
+writes a separate patched copy. Native packages are built for Android, Windows,
+Linux, and macOS on both ARM64 and x86-64; see `BUILDING.md` for the exact matrix.
+
+The Python 3.11 command-line interface remains available for automation. Apply a
+published recipe to your own legally obtained backup:
 
 ```sh
 python3 -m quickloke_patcher apply \

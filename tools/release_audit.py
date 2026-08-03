@@ -26,15 +26,31 @@ FORBIDDEN_TEXT = (
     "BEGIN PRIVATE" + " KEY",
 )
 ALLOWED_ROOTS = {
-    ".github", "configs", "quickloke_patcher", "recipes", "tests", "tools",
-    ".gitignore", "LICENSE", "README.md", "VERSION", "pyproject.toml",
+    ".github", "branding", "configs", "quickloke_patcher", "recipes",
+    "src-tauri", "tests", "tools", "ui", ".gitignore", "BUILDING.md",
+    "LICENSE", "README.md", "VERSION", "index.html", "package-lock.json",
+    "package.json", "pyproject.toml", "tsconfig.json", "vite.config.ts",
 }
 GPL_MARKERS = (
     "GNU GENERAL PUBLIC LICENSE",
     "Version 3, 29 June 2007",
     "Everyone is permitted to copy and distribute verbatim copies",
 )
-LICENSED_SOURCE_ROOTS = {"quickloke_patcher", "tests", "tools"}
+LICENSED_SOURCE_ROOTS = {"quickloke_patcher", "src-tauri", "tests", "tools", "ui"}
+LICENSED_SOURCE_SUFFIXES = {".css", ".py", ".rs", ".ts"}
+
+
+def public_source_paths(root: Path) -> tuple[list[Path], list[str]]:
+    result = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        return [], [f"cannot enumerate public source tree: {result.stderr.decode(errors='replace').strip()}"]
+    paths = [Path(value.decode()) for value in result.stdout.split(b"\0") if value]
+    return sorted(paths), []
 
 
 def tracked_history(root: Path) -> list[str]:
@@ -60,14 +76,10 @@ def tracked_history(root: Path) -> list[str]:
 
 
 def audit(root: Path, include_history: bool) -> list[str]:
-    failures: list[str] = []
+    source_paths, failures = public_source_paths(root)
     manifest = root / "recipes" / "manifest.json"
-    for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root)
-        if relative.parts and relative.parts[0] == ".git":
-            continue
-        if "__pycache__" in relative.parts or ".pytest_cache" in relative.parts:
-            continue
+    for relative in source_paths:
+        path = root / relative
         if path.is_symlink():
             failures.append(f"symlink is not allowed: {relative}")
             continue
@@ -90,7 +102,7 @@ def audit(root: Path, include_history: bool) -> list[str]:
             if marker.lower() in text.lower():
                 failures.append(f"private marker {marker!r} in {relative}")
         if (
-            path.suffix == ".py"
+            path.suffix in LICENSED_SOURCE_SUFFIXES
             and relative.parts[0] in LICENSED_SOURCE_ROOTS
             and "SPDX-License-Identifier: GPL-3.0-or-later" not in text
         ):
