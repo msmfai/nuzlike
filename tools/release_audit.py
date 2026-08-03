@@ -26,7 +26,7 @@ FORBIDDEN_TEXT = (
     "BEGIN PRIVATE" + " KEY",
 )
 ALLOWED_ROOTS = {
-    ".github", "quickloke_patcher", "recipes", "tests", "tools",
+    ".github", "configs", "quickloke_patcher", "recipes", "tests", "tools",
     ".gitignore", "LICENSE", "README.md", "VERSION", "pyproject.toml",
 }
 GPL_MARKERS = (

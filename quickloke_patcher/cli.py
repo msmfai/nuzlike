@@ -20,6 +20,11 @@ def parser() -> argparse.ArgumentParser:
     apply.add_argument("--input", required=True, type=Path)
     apply.add_argument("--recipe", required=True, type=Path)
     apply.add_argument("--output", required=True, type=Path)
+    apply.add_argument(
+        "--config",
+        type=Path,
+        help="optional schema-1 JSON overrides for configurable level caps",
+    )
 
     inspect = commands.add_parser("inspect", help="print hashes for an owned input")
     inspect.add_argument("--input", required=True, type=Path)
@@ -30,7 +35,12 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser().parse_args(argv)
     try:
         if arguments.command == "apply":
-            result = apply_recipe(arguments.input, arguments.recipe, arguments.output)
+            result = apply_recipe(
+                arguments.input,
+                arguments.recipe,
+                arguments.output,
+                config_path=arguments.config,
+            )
         else:
             result = inspect_input(arguments.input)
     except PatchError as error:

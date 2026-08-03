@@ -56,7 +56,61 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         raise PatchError("fingerprints must be a list")
     if not isinstance(recipe["writes"], list) or not recipe["writes"]:
         raise PatchError("writes must be a non-empty list")
+    configurable = recipe.get("configurable", {})
+    if not isinstance(configurable, dict):
+        raise PatchError("configurable must be an object")
+    unknown_configurable = set(configurable) - {"level_caps"}
+    if unknown_configurable:
+        raise PatchError(
+            "unsupported configurable fields: " + ", ".join(sorted(unknown_configurable))
+        )
+    level_caps = configurable.get("level_caps", [])
+    if not isinstance(level_caps, list):
+        raise PatchError("configurable.level_caps must be a list")
+    seen_cap_ids: set[str] = set()
+    seen_cap_offsets: set[int] = set()
+    for index, cap in enumerate(level_caps):
+        label = f"configurable.level_caps[{index}]"
+        if not isinstance(cap, dict):
+            raise PatchError(f"{label} must be an object")
+        cap_id = cap.get("id")
+        if not isinstance(cap_id, str) or not cap_id:
+            raise PatchError(f"{label}.id must be a non-empty string")
+        if cap_id in seen_cap_ids:
+            raise PatchError(f"duplicate configurable cap id {cap_id}")
+        offset = _offset(cap.get("offset"), f"{label}.offset")
+        if offset in seen_cap_offsets:
+            raise PatchError(f"duplicate configurable cap offset 0x{offset:x}")
+        default = cap.get("default")
+        if not isinstance(default, int) or isinstance(default, bool) or not 1 <= default <= 100:
+            raise PatchError(f"{label}.default must be an integer from 1 to 100")
+        seen_cap_ids.add(cap_id)
+        seen_cap_offsets.add(offset)
     return recipe
+
+
+def load_config(path: str | Path, *, game: str) -> dict[str, int]:
+    config_path = Path(path)
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise PatchError(f"cannot read config {config_path}: {error}") from error
+    if not isinstance(config, dict) or config.get("schema") != 1:
+        raise PatchError("config must be an object using schema 1")
+    unknown = set(config) - {"schema", "game", "level_caps"}
+    if unknown:
+        raise PatchError("unsupported config fields: " + ", ".join(sorted(unknown)))
+    if config.get("game") != game:
+        raise PatchError(f"config game must be {game!r}")
+    caps = config.get("level_caps", {})
+    if not isinstance(caps, dict):
+        raise PatchError("config level_caps must be an object")
+    for cap_id, level in caps.items():
+        if not isinstance(cap_id, str) or not cap_id:
+            raise PatchError("config cap ids must be non-empty strings")
+        if not isinstance(level, int) or isinstance(level, bool) or not 1 <= level <= 100:
+            raise PatchError(f"config level_caps.{cap_id} must be an integer from 1 to 100")
+    return caps
 
 
 def inspect_input(path: str | Path) -> dict[str, Any]:
@@ -90,7 +144,11 @@ def _check_region(data: bytes, entry: dict[str, Any], label: str) -> tuple[int, 
 
 
 def apply_recipe(
-    input_path: str | Path, recipe_path: str | Path, output_path: str | Path
+    input_path: str | Path,
+    recipe_path: str | Path,
+    output_path: str | Path,
+    *,
+    config_path: str | Path | None = None,
 ) -> dict[str, Any]:
     source = Path(input_path)
     destination = Path(output_path)
@@ -102,6 +160,16 @@ def apply_recipe(
         raise PatchError(f"cannot read input {source}: {error}") from error
 
     recipe = load_recipe(recipe_path)
+    cap_overrides = load_config(config_path, game=recipe["game"]) if config_path else {}
+    declared_caps = {
+        entry["id"]: entry for entry in recipe.get("configurable", {}).get("level_caps", [])
+    }
+    unknown_caps = set(cap_overrides) - set(declared_caps)
+    if unknown_caps:
+        raise PatchError(
+            "config contains caps not declared by this recipe: "
+            + ", ".join(sorted(unknown_caps))
+        )
     input_sha1 = _digest("sha1", original)
     canonical = input_sha1.lower() in {item.lower() for item in recipe["accepted_sha1"]}
     modified_allowed = recipe.get("allow_modified_input") is True
@@ -126,10 +194,30 @@ def apply_recipe(
         occupied.append((offset, end))
         output[offset:end] = replacement
 
+    effective_overrides: dict[str, int] = {}
+    for cap_id, entry in declared_caps.items():
+        offset = entry["offset"]
+        if offset >= len(output):
+            raise PatchError(f"configurable cap {cap_id} extends beyond the output")
+        if output[offset] != entry["default"]:
+            raise PatchError(
+                f"configurable cap {cap_id} expected generated default "
+                f"{entry['default']} at 0x{offset:x}, got {output[offset]}"
+            )
+        configured = cap_overrides.get(cap_id, entry["default"])
+        output[offset] = configured
+        if configured != entry["default"]:
+            effective_overrides[cap_id] = configured
+
     result = bytes(output)
     output_sha256 = _digest("sha256", result)
     canonical_expected = recipe.get("canonical_output_sha256")
-    if canonical and canonical_expected and output_sha256.lower() != canonical_expected.lower():
+    if (
+        canonical
+        and canonical_expected
+        and not effective_overrides
+        and output_sha256.lower() != canonical_expected.lower()
+    ):
         raise PatchError(
             "canonical output verification failed: "
             f"expected {canonical_expected}, got {output_sha256}"
@@ -160,5 +248,6 @@ def apply_recipe(
         "input_kind": "canonical" if canonical else "compatible-modified",
         "output_sha256": output_sha256,
         "writes": len(recipe["writes"]),
+        "level_cap_overrides": effective_overrides,
         "output": str(destination),
     }
