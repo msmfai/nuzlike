@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "games": {
+    "red": {
+      "easy": {"brock":16,"misty":23,"surge":26,"erika":31,"koga":43,"sabrina":45,"blaine":49,"giovanni":52,"lorelei":58,"bruno":60,"agatha":62,"lance":64,"champion":67},
+      "medium": {"brock":14,"misty":21,"surge":24,"erika":29,"koga":43,"sabrina":43,"blaine":47,"giovanni":50,"lorelei":56,"bruno":58,"agatha":60,"lance":62,"champion":65},
+      "hard": {"brock":12,"misty":19,"surge":22,"erika":27,"koga":39,"sabrina":40,"blaine":44,"giovanni":47,"lorelei":54,"bruno":56,"agatha":58,"lance":60,"champion":63}
+    },
+    "blue": {
+      "easy": {"brock":16,"misty":23,"surge":26,"erika":31,"koga":43,"sabrina":45,"blaine":49,"giovanni":52,"lorelei":58,"bruno":60,"agatha":62,"lance":64,"champion":67},
+      "medium": {"brock":14,"misty":21,"surge":24,"erika":29,"koga":43,"sabrina":43,"blaine":47,"giovanni":50,"lorelei":56,"bruno":58,"agatha":60,"lance":62,"champion":65},
+      "hard": {"brock":12,"misty":19,"surge":22,"erika":27,"koga":39,"sabrina":40,"blaine":44,"giovanni":47,"lorelei":54,"bruno":56,"agatha":58,"lance":60,"champion":63}
+    },
+    "yellow": {
+      "easy": {"brock":14,"misty":23,"surge":30,"erika":34,"koga":50,"sabrina":52,"blaine":55,"giovanni":57,"lorelei":58,"bruno":60,"agatha":62,"lance":64,"champion":67},
+      "medium": {"brock":12,"misty":21,"surge":28,"erika":32,"koga":50,"sabrina":50,"blaine":54,"giovanni":55,"lorelei":56,"bruno":58,"agatha":60,"lance":62,"champion":65},
+      "hard": {"brock":11,"misty":19,"surge":26,"erika":30,"koga":47,"sabrina":47,"blaine":51,"giovanni":53,"lorelei":54,"bruno":56,"agatha":58,"lance":60,"champion":63}
+    },
+    "gold": {
+      "easy": {"falkner":11,"bugsy":18,"whitney":23,"morty":27,"chuck":32,"pryce":33,"jasmine":37,"clair":42,"will":44,"koga":46,"bruno":48,"karen":49,"champion":52},
+      "medium": {"falkner":9,"bugsy":16,"whitney":20,"morty":25,"chuck":30,"pryce":31,"jasmine":35,"clair":40,"will":42,"koga":44,"bruno":46,"karen":47,"champion":50},
+      "hard": {"falkner":8,"bugsy":14,"whitney":18,"morty":23,"chuck":28,"pryce":30,"jasmine":33,"clair":38,"will":40,"koga":42,"bruno":44,"karen":45,"champion":48}
+    },
+    "silver": {
+      "easy": {"falkner":11,"bugsy":18,"whitney":23,"morty":27,"chuck":32,"pryce":33,"jasmine":37,"clair":42,"will":44,"koga":46,"bruno":48,"karen":49,"champion":52},
+      "medium": {"falkner":9,"bugsy":16,"whitney":20,"morty":25,"chuck":30,"pryce":31,"jasmine":35,"clair":40,"will":42,"koga":44,"bruno":46,"karen":47,"champion":50},
+      "hard": {"falkner":8,"bugsy":14,"whitney":18,"morty":23,"chuck":28,"pryce":30,"jasmine":33,"clair":38,"will":40,"koga":42,"bruno":44,"karen":45,"champion":48}
+    },
+    "crystal": {
+      "easy": {"falkner":11,"bugsy":18,"whitney":23,"morty":27,"chuck":32,"pryce":33,"jasmine":37,"clair":42,"will":44,"koga":46,"bruno":48,"karen":49,"champion":52},
+      "medium": {"falkner":9,"bugsy":16,"whitney":20,"morty":25,"chuck":30,"pryce":31,"jasmine":35,"clair":40,"will":42,"koga":44,"bruno":46,"karen":47,"champion":50},
+      "hard": {"falkner":8,"bugsy":14,"whitney":18,"morty":23,"chuck":28,"pryce":30,"jasmine":33,"clair":38,"will":40,"koga":42,"bruno":44,"karen":45,"champion":48}
+    },
+    "ruby": {
+      "easy": {"roxanne":17,"brawly":20,"wattson":26,"flannery":30,"norman":34,"winona":35,"tate_and_liza":45,"wallace":46,"sidney":51,"phoebe":53,"glacia":55,"drake":57,"champion":60},
+      "medium": {"roxanne":15,"brawly":18,"wattson":23,"flannery":28,"norman":31,"winona":33,"tate_and_liza":42,"wallace":43,"sidney":49,"phoebe":51,"glacia":53,"drake":55,"champion":58},
+      "hard": {"roxanne":13,"brawly":17,"wattson":21,"flannery":26,"norman":29,"winona":31,"tate_and_liza":39,"wallace":41,"sidney":47,"phoebe":49,"glacia":51,"drake":53,"champion":56}
+    },
+    "sapphire": {
+      "easy": {"roxanne":17,"brawly":20,"wattson":26,"flannery":30,"norman":34,"winona":35,"tate_and_liza":45,"wallace":46,"sidney":51,"phoebe":53,"glacia":55,"drake":57,"champion":60},
+      "medium": {"roxanne":15,"brawly":18,"wattson":23,"flannery":28,"norman":31,"winona":33,"tate_and_liza":42,"wallace":43,"sidney":49,"phoebe":51,"glacia":53,"drake":55,"champion":58},
+      "hard": {"roxanne":13,"brawly":17,"wattson":21,"flannery":26,"norman":29,"winona":31,"tate_and_liza":39,"wallace":41,"sidney":47,"phoebe":49,"glacia":51,"drake":53,"champion":56}
+    },
+    "emerald": {
+      "easy": {"roxanne":17,"brawly":21,"wattson":27,"flannery":31,"norman":34,"winona":35,"tate_and_liza":45,"juan":48,"sidney":51,"phoebe":53,"glacia":55,"drake":57,"champion":60},
+      "medium": {"roxanne":15,"brawly":19,"wattson":24,"flannery":29,"norman":31,"winona":33,"tate_and_liza":42,"juan":46,"sidney":49,"phoebe":51,"glacia":53,"drake":55,"champion":58},
+      "hard": {"roxanne":13,"brawly":17,"wattson":21,"flannery":27,"norman":29,"winona":31,"tate_and_liza":39,"juan":43,"sidney":47,"phoebe":49,"glacia":51,"drake":53,"champion":56}
+    },
+    "firered": {
+      "easy": {"brock":16,"misty":23,"surge":26,"erika":31,"koga":43,"sabrina":45,"blaine":49,"giovanni":52,"lorelei":56,"bruno":58,"agatha":60,"lance":62,"champion":65},
+      "medium": {"brock":14,"misty":21,"surge":24,"erika":29,"koga":43,"sabrina":43,"blaine":47,"giovanni":50,"lorelei":54,"bruno":56,"agatha":58,"lance":60,"champion":63},
+      "hard": {"brock":12,"misty":19,"surge":22,"erika":27,"koga":39,"sabrina":40,"blaine":44,"giovanni":47,"lorelei":52,"bruno":54,"agatha":56,"lance":58,"champion":61}
+    },
+    "leafgreen": {
+      "easy": {"brock":16,"misty":23,"surge":26,"erika":31,"koga":43,"sabrina":45,"blaine":49,"giovanni":52,"lorelei":56,"bruno":58,"agatha":60,"lance":62,"champion":65},
+      "medium": {"brock":14,"misty":21,"surge":24,"erika":29,"koga":43,"sabrina":43,"blaine":47,"giovanni":50,"lorelei":54,"bruno":56,"agatha":58,"lance":60,"champion":63},
+      "hard": {"brock":12,"misty":19,"surge":22,"erika":27,"koga":39,"sabrina":40,"blaine":44,"giovanni":47,"lorelei":52,"bruno":54,"agatha":56,"lance":58,"champion":61}
+    }
+  }
+}

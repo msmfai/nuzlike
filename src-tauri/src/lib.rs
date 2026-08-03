@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 mod patcher;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,7 @@ struct CatalogGame {
     name: String,
     canonical_sha1: String,
     default_config: UserConfig,
+    level_cap_presets: LevelCapPresets,
     recipe_id: Option<String>,
 }
 
@@ -43,6 +44,19 @@ struct CatalogGame {
 struct Catalog {
     schema: u8,
     games: Vec<CatalogGame>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct LevelCapPresets {
+    easy: BTreeMap<String, u8>,
+    medium: BTreeMap<String, u8>,
+    hard: BTreeMap<String, u8>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PresetCatalog {
+    schema: u8,
+    games: BTreeMap<String, LevelCapPresets>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -98,6 +112,57 @@ fn embedded_config(game: &str) -> Result<UserConfig, String> {
     parse_config(json)
 }
 
+fn embedded_presets() -> Result<BTreeMap<String, LevelCapPresets>, String> {
+    let file = CONFIGS
+        .get_file("presets/level_caps.json")
+        .ok_or_else(|| "embedded level-cap presets are missing".to_string())?;
+    let catalog: PresetCatalog = serde_json::from_slice(file.contents())
+        .map_err(|error| format!("embedded level-cap presets are invalid: {error}"))?;
+    if catalog.schema != 1 {
+        return Err("embedded level-cap presets must use schema 1".into());
+    }
+    Ok(catalog.games)
+}
+
+fn validate_presets(
+    game: &str,
+    defaults: &UserConfig,
+    presets: &LevelCapPresets,
+) -> Result<(), String> {
+    if presets.medium != defaults.level_caps {
+        return Err(format!(
+            "medium level-cap preset for {game} must exactly match its researched defaults"
+        ));
+    }
+    let expected: BTreeSet<_> = defaults.level_caps.keys().collect();
+    for (name, levels) in [
+        ("easy", &presets.easy),
+        ("medium", &presets.medium),
+        ("hard", &presets.hard),
+    ] {
+        if levels.keys().collect::<BTreeSet<_>>() != expected {
+            return Err(format!(
+                "{name} level-cap preset for {game} must contain every configured boss exactly once"
+            ));
+        }
+        if levels.values().any(|level| !(1..=100).contains(level)) {
+            return Err(format!(
+                "{name} level-cap preset for {game} contains a level outside 1 through 100"
+            ));
+        }
+    }
+    for boss in &expected {
+        if presets.easy[*boss] < presets.medium[*boss]
+            || presets.medium[*boss] < presets.hard[*boss]
+        {
+            return Err(format!(
+                "level-cap presets for {game}.{boss} must be ordered easy >= medium >= hard"
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn embedded_recipe(id: &str, hinted_file: Option<&str>) -> Result<String, String> {
     if let Some(path) = hinted_file
         && let Some(file) = RECIPES.get_file(path)
@@ -136,6 +201,11 @@ fn recipe_id(recipe: &patcher::Recipe) -> &str {
 #[tauri::command]
 fn get_catalog() -> Result<Catalog, String> {
     let manifest = manifest()?;
+    let expected_games: BTreeSet<_> = manifest.canonical_inputs.keys().cloned().collect();
+    let mut presets = embedded_presets()?;
+    if presets.keys().cloned().collect::<BTreeSet<_>>() != expected_games {
+        return Err("level-cap presets must contain exactly every supported game".into());
+    }
     let mut games = Vec::with_capacity(manifest.canonical_inputs.len());
     for (id, canonical_sha1) in manifest.canonical_inputs {
         let recipe_id = manifest
@@ -143,9 +213,15 @@ fn get_catalog() -> Result<Catalog, String> {
             .iter()
             .find(|release| release.game == id)
             .map(|release| release.id.clone());
+        let default_config = embedded_config(&id)?;
+        let level_cap_presets = presets
+            .remove(&id)
+            .ok_or_else(|| format!("level-cap presets for {id} are missing"))?;
+        validate_presets(&id, &default_config, &level_cap_presets)?;
         games.push(CatalogGame {
             name: game_name(&id),
-            default_config: embedded_config(&id)?,
+            default_config,
+            level_cap_presets,
             id,
             canonical_sha1,
             recipe_id,
@@ -243,5 +319,21 @@ mod tests {
             let recipe = parse_recipe(&json).unwrap();
             assert_eq!(recipe_id(&recipe), release.id);
         }
+    }
+
+    #[test]
+    fn embeds_complete_ordered_level_cap_presets() {
+        let catalog = get_catalog().unwrap();
+        assert_eq!(catalog.games.len(), 11);
+        for game in catalog.games {
+            validate_presets(&game.id, &game.default_config, &game.level_cap_presets).unwrap();
+        }
+        let yellow = get_catalog()
+            .unwrap()
+            .games
+            .into_iter()
+            .find(|game| game.id == "yellow")
+            .unwrap();
+        assert_eq!(yellow.level_cap_presets.medium["surge"], 28);
     }
 }
