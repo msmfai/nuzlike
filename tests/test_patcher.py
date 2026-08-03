@@ -18,6 +18,7 @@ class PatcherTests(unittest.TestCase):
         self.input = self.root / "owned-backup.gbc"
         self.output = self.root / "quicklocke.gbc"
         self.recipe = self.root / "recipe.json"
+        self.config = self.root / "config.json"
         self.data = bytes(range(64))
         self.input.write_bytes(self.data)
 
@@ -38,7 +39,13 @@ class PatcherTests(unittest.TestCase):
                     "expected_hex": "10111213",
                     "replacement_hex": "a0a1a2a3"
                 }
-            ]
+            ],
+            "configurable": {
+                "level_caps": [
+                    {"id": "brock", "offset": 20, "default": 20},
+                    {"id": "misty", "offset": 21, "default": 21}
+                ]
+            }
         }
         recipe.update(changes)
         self.recipe.write_text(json.dumps(recipe), encoding="utf-8")
@@ -82,6 +89,70 @@ class PatcherTests(unittest.TestCase):
         ])
         with self.assertRaises(PatchError):
             apply_recipe(self.input, self.recipe, self.output)
+
+    def test_config_overrides_declared_cap_bytes_after_fixed_writes(self) -> None:
+        self.write_recipe()
+        self.config.write_text(json.dumps({
+            "schema": 1,
+            "game": "red",
+            "level_caps": {"brock": 13, "misty": 20}
+        }), encoding="utf-8")
+        result = apply_recipe(
+            self.input, self.recipe, self.output, config_path=self.config
+        )
+        self.assertEqual(self.output.read_bytes()[20:22], bytes((13, 20)))
+        self.assertEqual(result["level_cap_overrides"], {"brock": 13, "misty": 20})
+
+    def test_config_rejects_unknown_cap(self) -> None:
+        self.write_recipe()
+        self.config.write_text(json.dumps({
+            "schema": 1,
+            "game": "red",
+            "level_caps": {"missingno": 42}
+        }), encoding="utf-8")
+        with self.assertRaises(PatchError):
+            apply_recipe(
+                self.input, self.recipe, self.output, config_path=self.config
+            )
+
+    def test_config_rejects_wrong_game_and_invalid_levels(self) -> None:
+        self.write_recipe()
+        for config in (
+            {"schema": 1, "game": "blue", "level_caps": {}},
+            {"schema": 1, "game": "red", "level_caps": {"brock": 0}},
+            {"schema": 1, "game": "red", "level_caps": {"brock": True}},
+        ):
+            with self.subTest(config=config):
+                self.config.write_text(json.dumps(config), encoding="utf-8")
+                with self.assertRaises(PatchError):
+                    apply_recipe(
+                        self.input, self.recipe, self.output, config_path=self.config
+                    )
+
+
+class CheckedInConfigTests(unittest.TestCase):
+    def test_all_canonical_games_have_valid_editable_defaults(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads(
+            (root / "recipes/manifest.json").read_text(encoding="utf-8")
+        )
+        expected_games = set(manifest["canonical_inputs"])
+        config_paths = sorted((root / "configs").glob("*.json"))
+        self.assertEqual({path.stem for path in config_paths}, expected_games)
+        for path in config_paths:
+            with self.subTest(path=path.name):
+                config = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(config["schema"], 1)
+                self.assertEqual(config["game"], path.stem)
+                self.assertTrue(config["level_caps"])
+                self.assertTrue(
+                    all(
+                        isinstance(level, int)
+                        and not isinstance(level, bool)
+                        and 1 <= level <= 100
+                        for level in config["level_caps"].values()
+                    )
+                )
 
 
 if __name__ == "__main__":

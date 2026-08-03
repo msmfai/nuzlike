@@ -10,11 +10,10 @@ software under the GNU General Public License, version 3 or (at your option) any
 later version (`GPL-3.0-or-later`). The license covers this original patching
 machinery; it does not grant rights to Pokémon games or other third-party works.
 
-Quicklocke is a gym-gated challenge mode for the main-series Generation I–III
-games. Its design removes wild-battle experience grinding, enforces the next Gym
-Leader's level ceiling, offers paid party catch-up training after each gym, adds
-soft and hardcore wipe modes, makes EV-building items affordable, and preserves
-randomizer-owned data.
+Quicklocke is a configurable challenge mode for the main-series Generation I–III
+games. It uses explicit boss caps, shares part of capped trainer experience,
+limits random encounters by named location, memorializes fainted Pokémon until
+the Championship, offers paid Gym training, and preserves randomizer-owned data.
 
 ## Current status
 
@@ -31,8 +30,14 @@ obtained backup:
 python3 -m quickloke_patcher apply \
   --input /path/to/your-backup.gbc \
   --recipe recipes/<release>.json \
+  --config configs/red.json \
   --output /path/to/quicklocke.gbc
 ```
+
+Copy the matching file under `configs/`, edit any named boss level, and pass it
+with `--config`. Omitting it uses the identical defaults embedded in the recipe.
+The patcher rejects misspelled bosses and out-of-range levels rather than
+silently producing a malformed game.
 
 Inspect an input without changing it:
 
