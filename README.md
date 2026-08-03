@@ -1,4 +1,4 @@
-# Quicklocke Patcher
+# [Pre-Alpha] Quicklocke Patcher
 
 This public repository contains only the ROM-free Quicklocke patching machinery,
 transparent recipe metadata, tests, and release automation. It does not contain
@@ -17,10 +17,10 @@ the Championship, offers paid Gym training, and preserves randomizer-owned data.
 
 ## Current status
 
-The patch engine and its safety contract are implemented, but the graphical app
-is not yet usable for real games: the repository currently contains no gameplay
-recipes. The existing private ROM builds still need to be converted into the
-ROM-free structured recipes consumed by this application.
+This is the first owner-test pre-alpha. The graphical app and ROM-free recipes
+for all 11 supported games are present, but the ports and packaged applications
+are still undergoing emulator and owner playtesting. Expect defects, keep your
+original backup untouched, and keep separate copies of any saves used for tests.
 
 ## Use
 
