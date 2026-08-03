@@ -19,7 +19,9 @@ class PatcherTests(unittest.TestCase):
         self.output = self.root / "quicklocke.gbc"
         self.recipe = self.root / "recipe.json"
         self.config = self.root / "config.json"
-        self.data = bytes(range(64))
+        data = bytearray(range(64))
+        data[22] = 0
+        self.data = bytes(data)
         self.input.write_bytes(self.data)
 
     def tearDown(self) -> None:
@@ -44,7 +46,12 @@ class PatcherTests(unittest.TestCase):
                 "level_caps": [
                     {"id": "brock", "offset": 20, "default": 20},
                     {"id": "misty", "offset": 21, "default": 21}
-                ]
+                ],
+                "wipe_mode": {
+                    "offset": 22,
+                    "default": "forgiving",
+                    "values": {"forgiving": 0, "hardcore": 1}
+                }
             }
         }
         recipe.update(changes)
@@ -103,6 +110,26 @@ class PatcherTests(unittest.TestCase):
         self.assertEqual(self.output.read_bytes()[20:22], bytes((13, 20)))
         self.assertEqual(result["level_cap_overrides"], {"brock": 13, "misty": 20})
 
+    def test_config_selects_hardcore_wipe_mode(self) -> None:
+        self.write_recipe()
+        self.config.write_text(json.dumps({
+            "schema": 1,
+            "game": "red",
+            "wipe_mode": "hardcore",
+            "level_caps": {}
+        }), encoding="utf-8")
+        result = apply_recipe(
+            self.input, self.recipe, self.output, config_path=self.config
+        )
+        self.assertEqual(self.output.read_bytes()[22], 1)
+        self.assertEqual(result["wipe_mode"], "hardcore")
+
+    def test_config_defaults_to_forgiving_wipe_mode(self) -> None:
+        self.write_recipe()
+        result = apply_recipe(self.input, self.recipe, self.output)
+        self.assertEqual(self.output.read_bytes()[22], 0)
+        self.assertEqual(result["wipe_mode"], "forgiving")
+
     def test_config_rejects_unknown_cap(self) -> None:
         self.write_recipe()
         self.config.write_text(json.dumps({
@@ -121,6 +148,7 @@ class PatcherTests(unittest.TestCase):
             {"schema": 1, "game": "blue", "level_caps": {}},
             {"schema": 1, "game": "red", "level_caps": {"brock": 0}},
             {"schema": 1, "game": "red", "level_caps": {"brock": True}},
+            {"schema": 1, "game": "red", "wipe_mode": "soft", "level_caps": {}},
         ):
             with self.subTest(config=config):
                 self.config.write_text(json.dumps(config), encoding="utf-8")
@@ -144,6 +172,7 @@ class CheckedInConfigTests(unittest.TestCase):
                 config = json.loads(path.read_text(encoding="utf-8"))
                 self.assertEqual(config["schema"], 1)
                 self.assertEqual(config["game"], path.stem)
+                self.assertIn(config["wipe_mode"], ("forgiving", "hardcore"))
                 self.assertTrue(config["level_caps"])
                 self.assertTrue(
                     all(

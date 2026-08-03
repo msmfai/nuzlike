@@ -59,7 +59,7 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     configurable = recipe.get("configurable", {})
     if not isinstance(configurable, dict):
         raise PatchError("configurable must be an object")
-    unknown_configurable = set(configurable) - {"level_caps"}
+    unknown_configurable = set(configurable) - {"level_caps", "wipe_mode"}
     if unknown_configurable:
         raise PatchError(
             "unsupported configurable fields: " + ", ".join(sorted(unknown_configurable))
@@ -68,7 +68,7 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     if not isinstance(level_caps, list):
         raise PatchError("configurable.level_caps must be a list")
     seen_cap_ids: set[str] = set()
-    seen_cap_offsets: set[int] = set()
+    seen_configurable_offsets: set[int] = set()
     for index, cap in enumerate(level_caps):
         label = f"configurable.level_caps[{index}]"
         if not isinstance(cap, dict):
@@ -79,17 +79,48 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         if cap_id in seen_cap_ids:
             raise PatchError(f"duplicate configurable cap id {cap_id}")
         offset = _offset(cap.get("offset"), f"{label}.offset")
-        if offset in seen_cap_offsets:
+        if offset in seen_configurable_offsets:
             raise PatchError(f"duplicate configurable cap offset 0x{offset:x}")
         default = cap.get("default")
         if not isinstance(default, int) or isinstance(default, bool) or not 1 <= default <= 100:
             raise PatchError(f"{label}.default must be an integer from 1 to 100")
         seen_cap_ids.add(cap_id)
-        seen_cap_offsets.add(offset)
+        seen_configurable_offsets.add(offset)
+    wipe_mode = configurable.get("wipe_mode")
+    if wipe_mode is not None:
+        if not isinstance(wipe_mode, dict):
+            raise PatchError("configurable.wipe_mode must be an object")
+        unknown_wipe_fields = set(wipe_mode) - {"offset", "default", "values"}
+        if unknown_wipe_fields:
+            raise PatchError(
+                "unsupported configurable.wipe_mode fields: "
+                + ", ".join(sorted(unknown_wipe_fields))
+            )
+        wipe_offset = _offset(wipe_mode.get("offset"), "configurable.wipe_mode.offset")
+        if wipe_offset in seen_configurable_offsets:
+            raise PatchError(f"duplicate configurable offset 0x{wipe_offset:x}")
+        values = wipe_mode.get("values")
+        if not isinstance(values, dict) or set(values) != {"forgiving", "hardcore"}:
+            raise PatchError(
+                "configurable.wipe_mode.values must define forgiving and hardcore"
+            )
+        if any(
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or not 0 <= value <= 255
+            for value in values.values()
+        ):
+            raise PatchError("configurable.wipe_mode values must be bytes")
+        if values["forgiving"] == values["hardcore"]:
+            raise PatchError("configurable.wipe_mode values must be distinct")
+        if wipe_mode.get("default") not in values:
+            raise PatchError(
+                "configurable.wipe_mode.default must be forgiving or hardcore"
+            )
     return recipe
 
 
-def load_config(path: str | Path, *, game: str) -> dict[str, int]:
+def load_config(path: str | Path, *, game: str) -> dict[str, Any]:
     config_path = Path(path)
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -97,7 +128,7 @@ def load_config(path: str | Path, *, game: str) -> dict[str, int]:
         raise PatchError(f"cannot read config {config_path}: {error}") from error
     if not isinstance(config, dict) or config.get("schema") != 1:
         raise PatchError("config must be an object using schema 1")
-    unknown = set(config) - {"schema", "game", "level_caps"}
+    unknown = set(config) - {"schema", "game", "level_caps", "wipe_mode"}
     if unknown:
         raise PatchError("unsupported config fields: " + ", ".join(sorted(unknown)))
     if config.get("game") != game:
@@ -110,7 +141,10 @@ def load_config(path: str | Path, *, game: str) -> dict[str, int]:
             raise PatchError("config cap ids must be non-empty strings")
         if not isinstance(level, int) or isinstance(level, bool) or not 1 <= level <= 100:
             raise PatchError(f"config level_caps.{cap_id} must be an integer from 1 to 100")
-    return caps
+    wipe_mode = config.get("wipe_mode")
+    if wipe_mode is not None and wipe_mode not in ("forgiving", "hardcore"):
+        raise PatchError("config wipe_mode must be 'forgiving' or 'hardcore'")
+    return {"level_caps": caps, "wipe_mode": wipe_mode}
 
 
 def inspect_input(path: str | Path) -> dict[str, Any]:
@@ -160,7 +194,12 @@ def apply_recipe(
         raise PatchError(f"cannot read input {source}: {error}") from error
 
     recipe = load_recipe(recipe_path)
-    cap_overrides = load_config(config_path, game=recipe["game"]) if config_path else {}
+    config = (
+        load_config(config_path, game=recipe["game"])
+        if config_path
+        else {"level_caps": {}, "wipe_mode": None}
+    )
+    cap_overrides = config["level_caps"]
     declared_caps = {
         entry["id"]: entry for entry in recipe.get("configurable", {}).get("level_caps", [])
     }
@@ -170,6 +209,9 @@ def apply_recipe(
             "config contains caps not declared by this recipe: "
             + ", ".join(sorted(unknown_caps))
         )
+    wipe_entry = recipe.get("configurable", {}).get("wipe_mode")
+    if config["wipe_mode"] is not None and wipe_entry is None:
+        raise PatchError("config contains wipe_mode but this recipe does not declare it")
     input_sha1 = _digest("sha1", original)
     canonical = input_sha1.lower() in {item.lower() for item in recipe["accepted_sha1"]}
     modified_allowed = recipe.get("allow_modified_input") is True
@@ -209,6 +251,25 @@ def apply_recipe(
         if configured != entry["default"]:
             effective_overrides[cap_id] = configured
 
+    configured_wipe_mode: str | None = None
+    wipe_mode_changed = False
+    if wipe_entry is not None:
+        wipe_offset = wipe_entry["offset"]
+        if wipe_offset >= len(output):
+            raise PatchError("configurable wipe mode extends beyond the output")
+        default_wipe_mode = wipe_entry["default"]
+        wipe_values = wipe_entry["values"]
+        default_wipe_byte = wipe_values[default_wipe_mode]
+        if output[wipe_offset] != default_wipe_byte:
+            raise PatchError(
+                "configurable wipe mode expected generated default "
+                f"{default_wipe_mode} ({default_wipe_byte}) at 0x{wipe_offset:x}, "
+                f"got {output[wipe_offset]}"
+            )
+        configured_wipe_mode = config["wipe_mode"] or default_wipe_mode
+        output[wipe_offset] = wipe_values[configured_wipe_mode]
+        wipe_mode_changed = configured_wipe_mode != default_wipe_mode
+
     result = bytes(output)
     output_sha256 = _digest("sha256", result)
     canonical_expected = recipe.get("canonical_output_sha256")
@@ -216,6 +277,7 @@ def apply_recipe(
         canonical
         and canonical_expected
         and not effective_overrides
+        and not wipe_mode_changed
         and output_sha256.lower() != canonical_expected.lower()
     ):
         raise PatchError(
@@ -249,5 +311,6 @@ def apply_recipe(
         "output_sha256": output_sha256,
         "writes": len(recipe["writes"]),
         "level_cap_overrides": effective_overrides,
+        "wipe_mode": configured_wipe_mode,
         "output": str(destination),
     }

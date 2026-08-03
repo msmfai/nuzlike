@@ -1,9 +1,11 @@
 # Default configurations
 
 Each schema-1 JSON file is an editable patcher configuration for one supported
-game. Values are community hardcore-Nuzlocke boss caps with documented
+game. `wipe_mode` selects `forgiving` (restore the post-victory checkpoint from
+the previous Gym after a wipe) or `hardcore` (permanently invalidate the run).
+Level values are community hardcore-Nuzlocke boss caps with documented
 Quicklocke challenge-flow adjustments. Passing a file to `apply --config`
-changes only cap bytes explicitly declared by the selected release recipe.
+changes only option bytes explicitly declared by the selected release recipe.
 
 Yellow defaults Lt. Surge to 26 rather than his solo Raichu's level 28. Gold,
 Silver, and Crystal list Pryce (31) before Jasmine (35) to avoid a decreasing

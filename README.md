@@ -34,10 +34,12 @@ python3 -m quickloke_patcher apply \
   --output /path/to/quicklocke.gbc
 ```
 
-Copy the matching file under `configs/`, edit any named boss level, and pass it
-with `--config`. Omitting it uses the identical defaults embedded in the recipe.
-The patcher rejects misspelled bosses and out-of-range levels rather than
-silently producing a malformed game.
+Copy the matching file under `configs/`, choose `forgiving` or `hardcore` for
+`wipe_mode`, edit any named boss level, and pass it with `--config`. Forgiving
+returns a wiped run to the checkpoint made immediately after the previous Gym;
+hardcore permanently ends the run. Omitting the file uses the identical defaults
+embedded in the recipe. The patcher rejects unknown modes, misspelled bosses,
+and out-of-range levels rather than silently producing a malformed game.
 
 Inspect an input without changing it:
 
