@@ -45,11 +45,12 @@ python3 -m quickloke_patcher apply \
 ```
 
 Copy the matching file under `configs/`, choose `forgiving` or `hardcore` for
-`wipe_mode`, edit any named boss level, and pass it with `--config`. Forgiving
+`wipe_mode`, set `overflow_percent` from 0 through 100, edit any named boss
+level, and pass it with `--config`. Forgiving
 returns a wiped run to the checkpoint made immediately after the previous Gym;
 hardcore permanently ends the run. Omitting the file uses the identical defaults
 embedded in the recipe. The patcher rejects unknown modes, misspelled bosses,
-and out-of-range levels rather than silently producing a malformed game.
+and out-of-range percentages or levels rather than silently producing a malformed game.
 
 Inspect an input without changing it:
 

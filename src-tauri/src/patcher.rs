@@ -62,11 +62,21 @@ pub struct WipeModeSite {
     values: BTreeMap<String, u8>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OverflowPercentSite {
+    offset: usize,
+    default: u8,
+    minimum: u8,
+    maximum: u8,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Configurable {
     level_caps: Vec<LevelCapSite>,
     wipe_mode: Option<WipeModeSite>,
+    overflow_percent: Option<OverflowPercentSite>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -104,6 +114,8 @@ pub struct UserConfig {
     pub wipe_mode: Option<String>,
     #[serde(default)]
     pub level_caps: BTreeMap<String, u8>,
+    #[serde(default)]
+    pub overflow_percent: Option<u8>,
 }
 
 #[derive(Debug, Serialize)]
@@ -117,6 +129,7 @@ pub struct PatchReport {
     pub writes: usize,
     pub level_cap_overrides: BTreeMap<String, u8>,
     pub wipe_mode: Option<String>,
+    pub overflow_percent: Option<u8>,
 }
 
 #[derive(Debug, Serialize)]
@@ -371,6 +384,17 @@ pub fn parse_recipe(json: &str) -> Result<Recipe, String> {
             return Err("wipe mode default must be forgiving or hardcore".into());
         }
     }
+    if let Some(site) = &recipe.configurable.overflow_percent {
+        if !configurable_offsets.insert(site.offset) {
+            return Err(format!("duplicate configurable offset 0x{:x}", site.offset));
+        }
+        if site.minimum != 0 || site.maximum != 100 {
+            return Err("overflow percent range must be 0 through 100".into());
+        }
+        if !(site.minimum..=site.maximum).contains(&site.default) {
+            return Err("overflow percent default must be 0 through 100".into());
+        }
+    }
     Ok(recipe)
 }
 
@@ -395,6 +419,9 @@ pub fn parse_config(json: &str) -> Result<UserConfig, String> {
                 "config level_caps.{id} must be an integer from 1 through 100"
             ));
         }
+    }
+    if config.overflow_percent.is_some_and(|value| value > 100) {
+        return Err("config overflow_percent must be an integer from 0 through 100".into());
     }
     Ok(config)
 }
@@ -433,6 +460,11 @@ pub fn apply(
         && recipe.configurable.wipe_mode.is_none()
     {
         return Err("config contains wipe_mode but this recipe does not declare it".into());
+    }
+    if config.and_then(|value| value.overflow_percent).is_some()
+        && recipe.configurable.overflow_percent.is_none()
+    {
+        return Err("config contains overflow_percent but this recipe does not declare it".into());
     }
 
     let input_sha1 = digest_sha1(original);
@@ -517,12 +549,33 @@ pub fn apply(
         wipe_mode = Some(selected.to_string());
     }
 
+    let mut overflow_percent = None;
+    let mut overflow_percent_changed = false;
+    if let Some(site) = &recipe.configurable.overflow_percent {
+        let generated = output
+            .get_mut(site.offset)
+            .ok_or_else(|| "configurable overflow percent extends beyond the output".to_string())?;
+        if *generated != site.default {
+            return Err(format!(
+                "configurable overflow percent expected generated default {} at 0x{:x}, got {}",
+                site.default, site.offset, *generated
+            ));
+        }
+        let selected = config
+            .and_then(|value| value.overflow_percent)
+            .unwrap_or(site.default);
+        *generated = selected;
+        overflow_percent_changed = selected != site.default;
+        overflow_percent = Some(selected);
+    }
+
     repair_cartridge_checksum(&mut output, &recipe.game);
 
     let output_sha256 = digest_sha256(&output);
     if canonical
         && effective_cap_overrides.is_empty()
         && !wipe_mode_changed
+        && !overflow_percent_changed
         && let Some(expected) = &recipe.canonical_output_sha256
         && !expected.eq_ignore_ascii_case(&output_sha256)
     {
@@ -550,6 +603,7 @@ pub fn apply(
                 .map_or(recipe.writes.len(), |patch| patch.operations.len()),
             level_cap_overrides: effective_cap_overrides,
             wipe_mode,
+            overflow_percent,
         },
     })
 }
@@ -561,6 +615,7 @@ mod tests {
     fn fixture() -> (Vec<u8>, String) {
         let mut data = (0_u8..64).collect::<Vec<_>>();
         data[22] = 0;
+        data[23] = 75;
         let recipe = serde_json::json!({
             "schema": 1,
             "id": "test-red-1",
@@ -582,6 +637,9 @@ mod tests {
                     "offset": 22,
                     "default": "forgiving",
                     "values": {"forgiving": 0, "hardcore": 1}
+                },
+                "overflow_percent": {
+                    "offset": 23, "default": 75, "minimum": 0, "maximum": 100
                 }
             }
         });
@@ -595,7 +653,7 @@ mod tests {
         let config = parse_config(
             r#"{
             "schema":1,"game":"red","wipe_mode":"hardcore",
-            "level_caps":{"brock":13,"misty":20}
+            "level_caps":{"brock":13,"misty":20},"overflow_percent":50
         }"#,
         )
         .unwrap();
@@ -605,8 +663,10 @@ mod tests {
         expected[20] = 13;
         expected[21] = 20;
         expected[22] = 1;
+        expected[23] = 50;
         assert_eq!(result.bytes, expected);
         assert_eq!(result.report.wipe_mode.as_deref(), Some("hardcore"));
+        assert_eq!(result.report.overflow_percent, Some(50));
     }
 
     #[test]
