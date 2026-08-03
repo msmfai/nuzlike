@@ -3,6 +3,8 @@
 Each schema-1 JSON file is an editable patcher configuration for one supported
 game. `wipe_mode` selects `forgiving` (restore the post-victory checkpoint from
 the previous Gym after a wipe) or `hardcore` (permanently invalidate the run).
+`overflow_percent` selects how much EXP from a capped Pokémon is divided among
+eligible teammates; it accepts 0 through 100 and defaults to 75.
 Level values come from a documented cross-check of published community
 hardcore-Nuzlocke cap tables. They are not calculated from trainer-party data.
 Passing a file to `apply --config` changes only option bytes explicitly declared

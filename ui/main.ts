@@ -19,6 +19,7 @@ interface UserConfig {
   schema: number;
   game: string;
   wipe_mode: WipeMode;
+  overflow_percent: number;
   level_caps: Record<string, number>;
 }
 
@@ -51,6 +52,7 @@ interface PatchReport {
   writes: number;
   levelCapOverrides: Record<string, number>;
   wipeMode: WipeMode | null;
+  overflowPercent: number | null;
 }
 
 const app = document.querySelector<HTMLElement>("#app")!;
@@ -169,6 +171,14 @@ function render(): void {
               <span><strong>Hardcore</strong><small>A full-party wipe permanently ends the run.</small></span>
             </label>
           </fieldset>
+          <fieldset ${config ? "" : "disabled"}>
+            <legend>Capped EXP sharing</legend>
+            <label class="cap-row">
+              <span>Overflow distributed to the rest of the party (%)</span>
+              <input id="overflow-percent" type="number" min="0" max="100"
+                value="${config?.overflow_percent ?? 75}" />
+            </label>
+          </fieldset>
           <fieldset class="cap-preset-fieldset" ${config ? "" : "disabled"}>
             <legend>Level-cap difficulty <span>${escapeHtml(capLabel)}</span></legend>
             <div class="preset-options">
@@ -215,6 +225,16 @@ function render(): void {
   });
   document.querySelectorAll<HTMLInputElement>('input[name="cap-preset"]').forEach((input) => {
     input.addEventListener("change", () => selectCapPreset(input.value as LevelCapPreset));
+  });
+  document.querySelector<HTMLInputElement>("#overflow-percent")?.addEventListener("change", (event) => {
+    if (!config) return;
+    const input = event.currentTarget as HTMLInputElement;
+    const value = Number(input.value);
+    if (Number.isInteger(value) && value >= 0 && value <= 100) {
+      config.overflow_percent = value;
+    } else {
+      input.value = String(config.overflow_percent);
+    }
   });
   document.querySelectorAll<HTMLInputElement>(".cap-input").forEach((input) => {
     input.addEventListener("change", () => {

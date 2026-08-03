@@ -22,6 +22,7 @@ class PatcherTests(unittest.TestCase):
         self.config = self.root / "config.json"
         data = bytearray(range(64))
         data[22] = 0
+        data[23] = 75
         self.data = bytes(data)
         self.input.write_bytes(self.data)
 
@@ -52,6 +53,9 @@ class PatcherTests(unittest.TestCase):
                     "offset": 22,
                     "default": "forgiving",
                     "values": {"forgiving": 0, "hardcore": 1}
+                },
+                "overflow_percent": {
+                    "offset": 23, "default": 75, "minimum": 0, "maximum": 100
                 }
             }
         }
@@ -152,6 +156,15 @@ class PatcherTests(unittest.TestCase):
         self.assertEqual(self.output.read_bytes()[22], 0)
         self.assertEqual(result["wipe_mode"], "forgiving")
 
+    def test_config_overrides_overflow_percent(self) -> None:
+        self.write_recipe()
+        self.config.write_text(json.dumps({
+            "schema": 1, "game": "red", "level_caps": {}, "overflow_percent": 50
+        }), encoding="utf-8")
+        result = apply_recipe(self.input, self.recipe, self.output, config_path=self.config)
+        self.assertEqual(self.output.read_bytes()[23], 50)
+        self.assertEqual(result["overflow_percent"], 50)
+
     def test_config_rejects_unknown_cap(self) -> None:
         self.write_recipe()
         self.config.write_text(json.dumps({
@@ -171,6 +184,8 @@ class PatcherTests(unittest.TestCase):
             {"schema": 1, "game": "red", "level_caps": {"brock": 0}},
             {"schema": 1, "game": "red", "level_caps": {"brock": True}},
             {"schema": 1, "game": "red", "wipe_mode": "soft", "level_caps": {}},
+            {"schema": 1, "game": "red", "overflow_percent": 101, "level_caps": {}},
+            {"schema": 1, "game": "red", "overflow_percent": True, "level_caps": {}},
         ):
             with self.subTest(config=config):
                 self.config.write_text(json.dumps(config), encoding="utf-8")
@@ -195,6 +210,7 @@ class CheckedInConfigTests(unittest.TestCase):
                 self.assertEqual(config["schema"], 1)
                 self.assertEqual(config["game"], path.stem)
                 self.assertIn(config["wipe_mode"], ("forgiving", "hardcore"))
+                self.assertEqual(config["overflow_percent"], 75)
                 self.assertTrue(config["level_caps"])
                 self.assertTrue(
                     all(

@@ -77,7 +77,7 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     configurable = recipe.get("configurable", {})
     if not isinstance(configurable, dict):
         raise PatchError("configurable must be an object")
-    unknown_configurable = set(configurable) - {"level_caps", "wipe_mode"}
+    unknown_configurable = set(configurable) - {"level_caps", "wipe_mode", "overflow_percent"}
     if unknown_configurable:
         raise PatchError(
             "unsupported configurable fields: " + ", ".join(sorted(unknown_configurable))
@@ -135,6 +135,24 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
             raise PatchError(
                 "configurable.wipe_mode.default must be forgiving or hardcore"
             )
+    overflow_percent = configurable.get("overflow_percent")
+    if overflow_percent is not None:
+        if not isinstance(overflow_percent, dict):
+            raise PatchError("configurable.overflow_percent must be an object")
+        if set(overflow_percent) != {"offset", "default", "minimum", "maximum"}:
+            raise PatchError("configurable.overflow_percent has unsupported or missing fields")
+        overflow_offset = _offset(
+            overflow_percent.get("offset"), "configurable.overflow_percent.offset"
+        )
+        if overflow_offset in seen_configurable_offsets:
+            raise PatchError(f"duplicate configurable offset 0x{overflow_offset:x}")
+        minimum = overflow_percent.get("minimum")
+        maximum = overflow_percent.get("maximum")
+        default = overflow_percent.get("default")
+        if (minimum, maximum) != (0, 100):
+            raise PatchError("configurable.overflow_percent range must be 0 through 100")
+        if not isinstance(default, int) or isinstance(default, bool) or not minimum <= default <= maximum:
+            raise PatchError("configurable.overflow_percent.default must be from 0 through 100")
     return recipe
 
 
@@ -146,7 +164,7 @@ def load_config(path: str | Path, *, game: str) -> dict[str, Any]:
         raise PatchError(f"cannot read config {config_path}: {error}") from error
     if not isinstance(config, dict) or config.get("schema") != 1:
         raise PatchError("config must be an object using schema 1")
-    unknown = set(config) - {"schema", "game", "level_caps", "wipe_mode"}
+    unknown = set(config) - {"schema", "game", "level_caps", "wipe_mode", "overflow_percent"}
     if unknown:
         raise PatchError("unsupported config fields: " + ", ".join(sorted(unknown)))
     if config.get("game") != game:
@@ -162,7 +180,21 @@ def load_config(path: str | Path, *, game: str) -> dict[str, Any]:
     wipe_mode = config.get("wipe_mode")
     if wipe_mode is not None and wipe_mode not in ("forgiving", "hardcore"):
         raise PatchError("config wipe_mode must be 'forgiving' or 'hardcore'")
-    return {"level_caps": caps, "wipe_mode": wipe_mode}
+    overflow_percent = config.get("overflow_percent")
+    if (
+        overflow_percent is not None
+        and (
+            not isinstance(overflow_percent, int)
+            or isinstance(overflow_percent, bool)
+            or not 0 <= overflow_percent <= 100
+        )
+    ):
+        raise PatchError("config overflow_percent must be an integer from 0 through 100")
+    return {
+        "level_caps": caps,
+        "wipe_mode": wipe_mode,
+        "overflow_percent": overflow_percent,
+    }
 
 
 def inspect_input(path: str | Path) -> dict[str, Any]:
@@ -275,7 +307,7 @@ def apply_recipe(
     config = (
         load_config(config_path, game=recipe["game"])
         if config_path
-        else {"level_caps": {}, "wipe_mode": None}
+        else {"level_caps": {}, "wipe_mode": None, "overflow_percent": None}
     )
     cap_overrides = config["level_caps"]
     declared_caps = {
@@ -290,6 +322,9 @@ def apply_recipe(
     wipe_entry = recipe.get("configurable", {}).get("wipe_mode")
     if config["wipe_mode"] is not None and wipe_entry is None:
         raise PatchError("config contains wipe_mode but this recipe does not declare it")
+    overflow_entry = recipe.get("configurable", {}).get("overflow_percent")
+    if config["overflow_percent"] is not None and overflow_entry is None:
+        raise PatchError("config contains overflow_percent but this recipe does not declare it")
     input_sha1 = _digest("sha1", original)
     canonical = input_sha1.lower() in {item.lower() for item in recipe["accepted_sha1"]}
     modified_allowed = recipe.get("allow_modified_input") is True
@@ -349,6 +384,27 @@ def apply_recipe(
         output[wipe_offset] = wipe_values[configured_wipe_mode]
         wipe_mode_changed = configured_wipe_mode != default_wipe_mode
 
+    configured_overflow_percent: int | None = None
+    overflow_percent_changed = False
+    if overflow_entry is not None:
+        overflow_offset = overflow_entry["offset"]
+        if overflow_offset >= len(output):
+            raise PatchError("configurable overflow percent extends beyond the output")
+        default_overflow_percent = overflow_entry["default"]
+        if output[overflow_offset] != default_overflow_percent:
+            raise PatchError(
+                "configurable overflow percent expected generated default "
+                f"{default_overflow_percent} at 0x{overflow_offset:x}, "
+                f"got {output[overflow_offset]}"
+            )
+        configured_overflow_percent = (
+            config["overflow_percent"]
+            if config["overflow_percent"] is not None
+            else default_overflow_percent
+        )
+        output[overflow_offset] = configured_overflow_percent
+        overflow_percent_changed = configured_overflow_percent != default_overflow_percent
+
     _repair_cartridge_checksum(output, recipe["game"])
 
     result = bytes(output)
@@ -359,6 +415,7 @@ def apply_recipe(
         and canonical_expected
         and not effective_overrides
         and not wipe_mode_changed
+        and not overflow_percent_changed
         and output_sha256.lower() != canonical_expected.lower()
     ):
         raise PatchError(
@@ -393,5 +450,6 @@ def apply_recipe(
         "writes": len(recipe["writes"]) if source_copy is None else len(source_copy["operations"]),
         "level_cap_overrides": effective_overrides,
         "wipe_mode": configured_wipe_mode,
+        "overflow_percent": configured_overflow_percent,
         "output": str(destination),
     }
