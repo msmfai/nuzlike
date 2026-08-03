@@ -28,6 +28,10 @@ The graphical application is the primary patcher. A single build recognizes all
 11 supported games, presents the appropriate cap defaults and wipe rule, and
 writes a separate patched copy. Native packages are built for Android, Windows,
 Linux, and macOS on both ARM64 and x86-64; see `BUILDING.md` for the exact matrix.
+Its level-cap selector provides explicit Easy, Medium, and Hard tables for every
+game. Medium is the documented community-default table; Easy and Hard are
+Quicklocke-authored balance choices rather than arithmetic offsets. Every boss
+level remains directly editable, which changes the selector to Custom.
 
 The Python 3.11 command-line interface remains available for automation. Apply a
 published recipe to your own legally obtained backup:

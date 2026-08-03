@@ -3,18 +3,31 @@
 Each schema-1 JSON file is an editable patcher configuration for one supported
 game. `wipe_mode` selects `forgiving` (restore the post-victory checkpoint from
 the previous Gym after a wipe) or `hardcore` (permanently invalidate the run).
-Level values are community hardcore-Nuzlocke boss caps with documented
-Quicklocke challenge-flow adjustments. Passing a file to `apply --config`
-changes only option bytes explicitly declared by the selected release recipe.
+Level values come from a documented cross-check of published community
+hardcore-Nuzlocke cap tables. They are not calculated from trainer-party data.
+Passing a file to `apply --config` changes only option bytes explicitly declared
+by the selected release recipe.
 
-Yellow defaults Lt. Surge to 26 rather than his solo Raichu's level 28. Gold,
-Silver, and Crystal list Pryce (31) before Jasmine (35) to avoid a decreasing
-enforced cap. Users can change either decision directly.
+The graphical patcher offers Easy, Medium, and Hard level-cap modes. Medium is
+the sourced community table represented by the top-level game configuration
+files. Easy and Hard are transparent Quicklocke balance presets, not claimed
+community standards. All three are complete per-game, per-boss tables in
+[`presets/level_caps.json`](presets/level_caps.json); the patcher never produces
+them with a blanket numerical offset. Editing any individual field changes the
+displayed mode to Custom.
+
+Yellow uses the community-listed Lt. Surge cap of 28. Gold, Silver, and Crystal
+list Pryce (31) before Jasmine (35) to avoid a decreasing enforced cap. Users
+can override any level directly.
 
 Sources and rationale:
 
 - <https://nuzlockeuniversity.ca/2022/01/18/hardcore-nuzlocke-level-caps-by-generation/>
-- <https://www.smogon.com/articles/introduction-nuzlockes>
+- <https://www.reddit.com/r/nuzlocke/comments/8cejlk/level_limits/>
+- <https://nuzlocketracker.org/guides>
+
+See [the full per-game source audit](LEVEL_CAP_SOURCES.md) for every Medium default,
+the two source disagreements, Yellow's solo-Raichu case, and Johto ordering.
 
 These files contain configuration data only. They contain no ROM bytes, game
 source, extracted assets, keys, or patches.

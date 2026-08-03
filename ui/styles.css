@@ -130,6 +130,7 @@ h1 { margin: 0; font-size: clamp(1.55rem, 3vw, 2rem); line-height: 1; }
 
 fieldset { display: grid; gap: 9px; margin: 0; padding: 0; border: 0; }
 legend { margin-bottom: 9px; color: #8994af; font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+legend span { float: right; margin-left: 12px; color: #cbd4ff; }
 .mode-option {
   display: flex;
   align-items: flex-start;
@@ -143,6 +144,25 @@ legend { margin-bottom: 9px; color: #8994af; font-size: 0.76rem; font-weight: 70
 .mode-option input { margin-top: 3px; accent-color: #7890ef; }
 .mode-option span { display: flex; flex-direction: column; gap: 3px; }
 .mode-option small { color: #8f9ab5; line-height: 1.35; }
+
+.cap-preset-fieldset { margin-top: 18px; padding-top: 17px; border-top: 1px solid #293148; }
+.cap-preset-fieldset legend { width: 100%; padding-top: 17px; }
+.preset-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.preset-option {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 10px 8px;
+  border: 1px solid #2a334a;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.preset-option.selected { border-color: #6478d2; background: rgba(75, 94, 174, 0.14); }
+.preset-option input { margin: 3px 0 0; accent-color: #7890ef; }
+.preset-option span { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.preset-option small { color: #8f9ab5; font-size: 0.68rem; line-height: 1.3; }
+.preset-note { margin: 8px 2px 0; color: #737f9e; font-size: 0.68rem; line-height: 1.4; }
 
 details { margin-top: 17px; border-top: 1px solid #293148; }
 summary { padding: 16px 2px 0; color: #cbd2e3; cursor: pointer; font-size: 0.85rem; font-weight: 700; }
@@ -179,4 +199,5 @@ footer { display: flex; justify-content: space-between; gap: 20px; padding-top: 
   .mark { width: 40px; height: 40px; }
   .mark::after { inset: 10px; }
   .caps { grid-template-columns: 1fr; }
+  .preset-options { grid-template-columns: 1fr; }
 }
