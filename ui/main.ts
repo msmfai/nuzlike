@@ -5,7 +5,6 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import "./styles.css";
 
-type WipeMode = "forgiving" | "hardcore";
 type LevelCapPreset = "easy" | "medium" | "hard";
 type LevelCapSelection = LevelCapPreset | "custom";
 
@@ -18,7 +17,6 @@ interface LevelCapPresets {
 interface UserConfig {
   schema: number;
   game: string;
-  wipe_mode: WipeMode;
   overflow_percent: number;
   level_caps: Record<string, number>;
 }
@@ -51,7 +49,6 @@ interface PatchReport {
   outputSha256: string;
   writes: number;
   levelCapOverrides: Record<string, number>;
-  wipeMode: WipeMode | null;
   overflowPercent: number | null;
 }
 
@@ -160,17 +157,7 @@ function render(): void {
 
         <section class="card options-card ${config ? "" : "disabled"}">
           <div class="step"><span>2</span><h2>Challenge options</h2></div>
-          <fieldset ${config ? "" : "disabled"}>
-            <legend>Wipe rule</legend>
-            <label class="mode-option ${config?.wipe_mode === "forgiving" ? "selected" : ""}">
-              <input type="radio" name="wipe-mode" value="forgiving" ${config?.wipe_mode === "forgiving" ? "checked" : ""} />
-              <span><strong>Forgiving</strong><small>Return to the checkpoint made after the previous Gym.</small></span>
-            </label>
-            <label class="mode-option ${config?.wipe_mode === "hardcore" ? "selected" : ""}">
-              <input type="radio" name="wipe-mode" value="hardcore" ${config?.wipe_mode === "hardcore" ? "checked" : ""} />
-              <span><strong>Hardcore</strong><small>A full-party wipe permanently ends the run.</small></span>
-            </label>
-          </fieldset>
+          <p class="notice"><strong>Hardcore wipe rule:</strong> a full-party wipe permanently ends the run.</p>
           <fieldset ${config ? "" : "disabled"}>
             <legend>Capped EXP sharing</legend>
             <label class="cap-row">
@@ -217,12 +204,6 @@ function render(): void {
 
   document.querySelector("#choose-rom")?.addEventListener("click", chooseRom);
   document.querySelector("#patch-rom")?.addEventListener("click", patchAndSave);
-  document.querySelectorAll<HTMLInputElement>('input[name="wipe-mode"]').forEach((input) => {
-    input.addEventListener("change", () => {
-      if (config) config.wipe_mode = input.value as WipeMode;
-      render();
-    });
-  });
   document.querySelectorAll<HTMLInputElement>('input[name="cap-preset"]').forEach((input) => {
     input.addEventListener("change", () => selectCapPreset(input.value as LevelCapPreset));
   });
@@ -321,7 +302,7 @@ async function patchAndSave(): Promise<void> {
       return;
     }
     await writeFile(destination, bytes);
-    setStatus(`Saved safely · ${report.outputSha256.slice(0, 12)}… · ${report.wipeMode}`, "success");
+    setStatus(`Saved safely · ${report.outputSha256.slice(0, 12)}… · hardcore`, "success");
   } catch (error) {
     setStatus(String(error), "error");
   }

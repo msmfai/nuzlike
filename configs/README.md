@@ -1,8 +1,7 @@
 # Default configurations
 
 Each schema-1 JSON file is an editable patcher configuration for one supported
-game. `wipe_mode` selects `forgiving` (restore the post-victory checkpoint from
-the previous Gym after a wipe) or `hardcore` (permanently invalidate the run).
+game. A full-party wipe permanently invalidates the run; it is not configurable.
 `overflow_percent` selects how much EXP from a capped Pokémon is divided among
 eligible teammates; it accepts 0 through 100 and defaults to 75.
 Level values come from a documented cross-check of published community

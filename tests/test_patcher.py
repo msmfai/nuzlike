@@ -49,11 +49,6 @@ class PatcherTests(unittest.TestCase):
                     {"id": "brock", "offset": 20, "default": 20},
                     {"id": "misty", "offset": 21, "default": 21}
                 ],
-                "wipe_mode": {
-                    "offset": 22,
-                    "default": "forgiving",
-                    "values": {"forgiving": 0, "hardcore": 1}
-                },
                 "overflow_percent": {
                     "offset": 23, "default": 75, "minimum": 0, "maximum": 100
                 }
@@ -136,26 +131,6 @@ class PatcherTests(unittest.TestCase):
         self.assertEqual(self.output.read_bytes()[20:22], bytes((13, 20)))
         self.assertEqual(result["level_cap_overrides"], {"brock": 13, "misty": 20})
 
-    def test_config_selects_hardcore_wipe_mode(self) -> None:
-        self.write_recipe()
-        self.config.write_text(json.dumps({
-            "schema": 1,
-            "game": "red",
-            "wipe_mode": "hardcore",
-            "level_caps": {}
-        }), encoding="utf-8")
-        result = apply_recipe(
-            self.input, self.recipe, self.output, config_path=self.config
-        )
-        self.assertEqual(self.output.read_bytes()[22], 1)
-        self.assertEqual(result["wipe_mode"], "hardcore")
-
-    def test_config_defaults_to_forgiving_wipe_mode(self) -> None:
-        self.write_recipe()
-        result = apply_recipe(self.input, self.recipe, self.output)
-        self.assertEqual(self.output.read_bytes()[22], 0)
-        self.assertEqual(result["wipe_mode"], "forgiving")
-
     def test_config_overrides_overflow_percent(self) -> None:
         self.write_recipe()
         self.config.write_text(json.dumps({
@@ -209,7 +184,7 @@ class CheckedInConfigTests(unittest.TestCase):
                 config = json.loads(path.read_text(encoding="utf-8"))
                 self.assertEqual(config["schema"], 1)
                 self.assertEqual(config["game"], path.stem)
-                self.assertIn(config["wipe_mode"], ("forgiving", "hardcore"))
+                self.assertNotIn("wipe_mode", config)
                 self.assertEqual(config["overflow_percent"], 75)
                 self.assertTrue(config["level_caps"])
                 self.assertTrue(
