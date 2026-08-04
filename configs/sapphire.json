@@ -1,1 +1,21 @@
-{"schema":1,"game":"sapphire","overflow_percent":75,"level_caps":{"roxanne":15,"brawly":18,"wattson":23,"flannery":28,"norman":31,"winona":33,"tate_and_liza":42,"wallace":43,"sidney":49,"phoebe":51,"glacia":53,"drake":55,"champion":58}}
+{
+  "schema": 1,
+  "game": "sapphire",
+  "overflow_percent": 75,
+  "debug": { "infinite_health": false, "maximum_damage": false, "disable_trainer_sight": false },
+  "level_caps": {
+    "roxanne": 15,
+    "brawly": 18,
+    "wattson": 23,
+    "flannery": 28,
+    "norman": 31,
+    "winona": 33,
+    "tate_and_liza": 42,
+    "wallace": 43,
+    "sidney": 49,
+    "phoebe": 51,
+    "glacia": 53,
+    "drake": 55,
+    "champion": 58
+  }
+}

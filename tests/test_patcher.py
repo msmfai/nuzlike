@@ -51,6 +51,15 @@ class PatcherTests(unittest.TestCase):
                 ],
                 "overflow_percent": {
                     "offset": 23, "default": 75, "minimum": 0, "maximum": 100
+                },
+                "debug_flags": {
+                    "offset": 22,
+                    "default": 0,
+                    "flags": {
+                        "infinite_health": 1,
+                        "maximum_damage": 2,
+                        "disable_trainer_sight": 4
+                    }
                 }
             }
         }
@@ -140,6 +149,30 @@ class PatcherTests(unittest.TestCase):
         self.assertEqual(self.output.read_bytes()[23], 50)
         self.assertEqual(result["overflow_percent"], 50)
 
+    def test_debug_cheats_are_independent_and_default_off(self) -> None:
+        self.write_recipe()
+        normal = apply_recipe(self.input, self.recipe, self.output)
+        self.assertEqual(self.output.read_bytes()[22], 0)
+        self.assertEqual(normal["debug"], {
+            "infinite_health": False,
+            "maximum_damage": False,
+            "disable_trainer_sight": False,
+        })
+        for name, mask in (
+            ("infinite_health", 1),
+            ("maximum_damage", 2),
+            ("disable_trainer_sight", 4),
+        ):
+            with self.subTest(name=name):
+                self.config.write_text(json.dumps({
+                    "schema": 1,
+                    "game": "red",
+                    "debug": {name: True},
+                }), encoding="utf-8")
+                result = apply_recipe(self.input, self.recipe, self.output, config_path=self.config)
+                self.assertEqual(self.output.read_bytes()[22], mask)
+                self.assertTrue(result["debug"][name])
+
     def test_config_rejects_unknown_cap(self) -> None:
         self.write_recipe()
         self.config.write_text(json.dumps({
@@ -161,6 +194,8 @@ class PatcherTests(unittest.TestCase):
             {"schema": 1, "game": "red", "wipe_mode": "soft", "level_caps": {}},
             {"schema": 1, "game": "red", "overflow_percent": 101, "level_caps": {}},
             {"schema": 1, "game": "red", "overflow_percent": True, "level_caps": {}},
+            {"schema": 1, "game": "red", "debug": {"infinite_health": 1}},
+            {"schema": 1, "game": "red", "debug": {"walk_through_walls": True}},
         ):
             with self.subTest(config=config):
                 self.config.write_text(json.dumps(config), encoding="utf-8")
@@ -186,6 +221,11 @@ class CheckedInConfigTests(unittest.TestCase):
                 self.assertEqual(config["game"], path.stem)
                 self.assertNotIn("wipe_mode", config)
                 self.assertEqual(config["overflow_percent"], 75)
+                self.assertEqual(config["debug"], {
+                    "infinite_health": False,
+                    "maximum_damage": False,
+                    "disable_trainer_sight": False,
+                })
                 self.assertTrue(config["level_caps"])
                 self.assertTrue(
                     all(

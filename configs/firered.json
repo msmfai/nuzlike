@@ -1,1 +1,21 @@
-{"schema":1,"game":"firered","overflow_percent":75,"level_caps":{"brock":14,"misty":21,"surge":24,"erika":29,"koga":43,"sabrina":43,"blaine":47,"giovanni":50,"lorelei":54,"bruno":56,"agatha":58,"lance":60,"champion":63}}
+{
+  "schema": 1,
+  "game": "firered",
+  "overflow_percent": 75,
+  "debug": { "infinite_health": false, "maximum_damage": false, "disable_trainer_sight": false },
+  "level_caps": {
+    "brock": 14,
+    "misty": 21,
+    "surge": 24,
+    "erika": 29,
+    "koga": 43,
+    "sabrina": 43,
+    "blaine": 47,
+    "giovanni": 50,
+    "lorelei": 54,
+    "bruno": 56,
+    "agatha": 58,
+    "lance": 60,
+    "champion": 63
+  }
+}
