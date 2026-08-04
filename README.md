@@ -17,10 +17,16 @@ the Championship, offers paid Gym training, and preserves randomizer-owned data.
 
 ## Current status
 
-This is the first owner-test pre-alpha. The graphical app and ROM-free recipes
+**This build will almost certainly softlock somewhere.** It is an extremely
+early pre-alpha, not a stable release and not suitable for a serious run. Keep
+your original backup untouched, use disposable test saves, and expect to lose
+progress or restart.
+
+The graphical app and ROM-free recipes
 for all 11 supported games are present, but the ports and packaged applications
-are still undergoing emulator and owner playtesting. Expect defects, keep your
-original backup untouched, and keep separate copies of any saves used for tests.
+are still undergoing emulator and owner playtesting. Emerald has passed one
+limited owner playtest of its prepared Rustboro Gym Pass fixture; that is not an
+end-to-end progression test or a claim that Emerald is free of blockers.
 
 ## Use
 
