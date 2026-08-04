@@ -63,11 +63,20 @@ pub struct OverflowPercentSite {
     maximum: u8,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DebugFlagsSite {
+    offset: usize,
+    default: u8,
+    flags: BTreeMap<String, u8>,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Configurable {
     level_caps: Vec<LevelCapSite>,
     overflow_percent: Option<OverflowPercentSite>,
+    debug_flags: Option<DebugFlagsSite>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,6 +105,22 @@ impl Recipe {
     }
 }
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(default, deny_unknown_fields)]
+pub struct DebugOptions {
+    pub infinite_health: bool,
+    pub maximum_damage: bool,
+    pub disable_trainer_sight: bool,
+}
+
+impl DebugOptions {
+    fn mask(&self) -> u8 {
+        u8::from(self.infinite_health)
+            | (u8::from(self.maximum_damage) << 1)
+            | (u8::from(self.disable_trainer_sight) << 2)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct UserConfig {
@@ -105,6 +130,8 @@ pub struct UserConfig {
     pub level_caps: BTreeMap<String, u8>,
     #[serde(default)]
     pub overflow_percent: Option<u8>,
+    #[serde(default)]
+    pub debug: DebugOptions,
 }
 
 #[derive(Debug, Serialize)]
@@ -118,6 +145,7 @@ pub struct PatchReport {
     pub writes: usize,
     pub level_cap_overrides: BTreeMap<String, u8>,
     pub overflow_percent: Option<u8>,
+    pub debug: DebugOptions,
 }
 
 #[derive(Debug, Serialize)]
@@ -363,6 +391,19 @@ pub fn parse_recipe(json: &str) -> Result<Recipe, String> {
             return Err("overflow percent default must be 0 through 100".into());
         }
     }
+    if let Some(site) = &recipe.configurable.debug_flags {
+        if !configurable_offsets.insert(site.offset) {
+            return Err(format!("duplicate configurable offset 0x{:x}", site.offset));
+        }
+        let expected = BTreeMap::from([
+            ("disable_trainer_sight".to_string(), 4),
+            ("infinite_health".to_string(), 1),
+            ("maximum_damage".to_string(), 2),
+        ]);
+        if site.default != 0 || site.flags != expected {
+            return Err("debug flags must declare the supported flags with default 0".into());
+        }
+    }
     Ok(recipe)
 }
 
@@ -422,6 +463,11 @@ pub fn apply(
         && recipe.configurable.overflow_percent.is_none()
     {
         return Err("config contains overflow_percent but this recipe does not declare it".into());
+    }
+    if config.is_some_and(|value| value.debug.mask() != 0)
+        && recipe.configurable.debug_flags.is_none()
+    {
+        return Err("config enables debug toggles but this recipe does not declare them".into());
     }
 
     let input_sha1 = digest_sha1(original);
@@ -505,12 +551,30 @@ pub fn apply(
         overflow_percent = Some(selected);
     }
 
+    let debug = config.map(|value| value.debug.clone()).unwrap_or_default();
+    let debug_mask = debug.mask();
+    let mut debug_flags_changed = false;
+    if let Some(site) = &recipe.configurable.debug_flags {
+        let generated = output
+            .get_mut(site.offset)
+            .ok_or_else(|| "configurable debug flags extend beyond the output".to_string())?;
+        if *generated != site.default {
+            return Err(format!(
+                "configurable debug flags expected generated default {} at 0x{:x}, got {}",
+                site.default, site.offset, *generated
+            ));
+        }
+        *generated = debug_mask;
+        debug_flags_changed = debug_mask != site.default;
+    }
+
     repair_cartridge_checksum(&mut output, &recipe.game);
 
     let output_sha256 = digest_sha256(&output);
     if canonical
         && effective_cap_overrides.is_empty()
         && !overflow_percent_changed
+        && !debug_flags_changed
         && let Some(expected) = &recipe.canonical_output_sha256
         && !expected.eq_ignore_ascii_case(&output_sha256)
     {
@@ -538,6 +602,7 @@ pub fn apply(
                 .map_or(recipe.writes.len(), |patch| patch.operations.len()),
             level_cap_overrides: effective_cap_overrides,
             overflow_percent,
+            debug,
         },
     })
 }
@@ -569,6 +634,15 @@ mod tests {
                 ],
                 "overflow_percent": {
                     "offset": 23, "default": 75, "minimum": 0, "maximum": 100
+                },
+                "debug_flags": {
+                    "offset": 22,
+                    "default": 0,
+                    "flags": {
+                        "infinite_health": 1,
+                        "maximum_damage": 2,
+                        "disable_trainer_sight": 4
+                    }
                 }
             }
         });
@@ -582,7 +656,8 @@ mod tests {
         let config = parse_config(
             r#"{
             "schema":1,"game":"red",
-            "level_caps":{"brock":13,"misty":20},"overflow_percent":50
+            "level_caps":{"brock":13,"misty":20},"overflow_percent":50,
+            "debug":{"infinite_health":true,"maximum_damage":false,"disable_trainer_sight":true}
         }"#,
         )
         .unwrap();
@@ -591,9 +666,11 @@ mod tests {
         expected[16..20].copy_from_slice(&[0xa0, 0xa1, 0xa2, 0xa3]);
         expected[20] = 13;
         expected[21] = 20;
+        expected[22] = 5;
         expected[23] = 50;
         assert_eq!(result.bytes, expected);
         assert_eq!(result.report.overflow_percent, Some(50));
+        assert_eq!(result.report.debug.mask(), 5);
     }
 
     #[test]

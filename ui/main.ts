@@ -19,6 +19,7 @@ interface UserConfig {
   game: string;
   overflow_percent: number;
   level_caps: Record<string, number>;
+  debug: Record<"infinite_health" | "maximum_damage" | "disable_trainer_sight", boolean>;
 }
 
 interface GameEntry {
@@ -50,6 +51,7 @@ interface PatchReport {
   writes: number;
   levelCapOverrides: Record<string, number>;
   overflowPercent: number | null;
+  debug: Record<string, boolean>;
 }
 
 const app = document.querySelector<HTMLElement>("#app")!;
@@ -188,6 +190,22 @@ function render(): void {
             <summary>Boss level caps <span>${config ? `${capLabel} · ${Object.keys(config.level_caps).length}` : "0"}</span></summary>
             <div class="caps">${caps}</div>
           </details>
+          <fieldset class="debug-fieldset" ${config ? "" : "disabled"}>
+            <legend>Debug cheats <span>testing only</span></legend>
+            <p class="notice"><strong>Debug build:</strong> these toggles deliberately bypass normal gameplay and are off by default.</p>
+            <label class="preset-option">
+              <input class="debug-toggle" type="checkbox" data-debug="infinite_health" ${config?.debug.infinite_health ? "checked" : ""} />
+              <span><strong>Infinite health</strong><small>Player Pokémon do not lose HP in battle.</small></span>
+            </label>
+            <label class="preset-option">
+              <input class="debug-toggle" type="checkbox" data-debug="maximum_damage" ${config?.debug.maximum_damage ? "checked" : ""} />
+              <span><strong>Maximum damage</strong><small>Player attacks defeat the current opposing Pokémon immediately.</small></span>
+            </label>
+            <label class="preset-option">
+              <input class="debug-toggle" type="checkbox" data-debug="disable_trainer_sight" ${config?.debug.disable_trainer_sight ? "checked" : ""} />
+              <span><strong>Disable trainer sight</strong><small>Trainers engage only when you choose to talk to them.</small></span>
+            </label>
+          </fieldset>
         </section>
       </div>
 
@@ -229,6 +247,13 @@ function render(): void {
       } else {
         input.value = String(config.level_caps[input.dataset.cap ?? ""]);
       }
+    });
+  });
+  document.querySelectorAll<HTMLInputElement>(".debug-toggle").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!config) return;
+      const name = input.dataset.debug as keyof UserConfig["debug"];
+      config.debug[name] = input.checked;
     });
   });
 }
@@ -302,7 +327,8 @@ async function patchAndSave(): Promise<void> {
       return;
     }
     await writeFile(destination, bytes);
-    setStatus(`Saved safely · ${report.outputSha256.slice(0, 12)}… · hardcore`, "success");
+    const cheats = Object.values(report.debug).filter(Boolean).length;
+    setStatus(`Saved safely · ${report.outputSha256.slice(0, 12)}… · hardcore${cheats ? ` · ${cheats} debug cheat${cheats === 1 ? "" : "s"}` : ""}`, "success");
   } catch (error) {
     setStatus(String(error), "error");
   }

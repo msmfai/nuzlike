@@ -77,7 +77,7 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
     configurable = recipe.get("configurable", {})
     if not isinstance(configurable, dict):
         raise PatchError("configurable must be an object")
-    unknown_configurable = set(configurable) - {"level_caps", "overflow_percent"}
+    unknown_configurable = set(configurable) - {"level_caps", "overflow_percent", "debug_flags"}
     if unknown_configurable:
         raise PatchError(
             "unsupported configurable fields: " + ", ".join(sorted(unknown_configurable))
@@ -115,6 +115,7 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         )
         if overflow_offset in seen_configurable_offsets:
             raise PatchError(f"duplicate configurable offset 0x{overflow_offset:x}")
+        seen_configurable_offsets.add(overflow_offset)
         minimum = overflow_percent.get("minimum")
         maximum = overflow_percent.get("maximum")
         default = overflow_percent.get("default")
@@ -122,6 +123,20 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
             raise PatchError("configurable.overflow_percent range must be 0 through 100")
         if not isinstance(default, int) or isinstance(default, bool) or not minimum <= default <= maximum:
             raise PatchError("configurable.overflow_percent.default must be from 0 through 100")
+    debug_flags = configurable.get("debug_flags")
+    if debug_flags is not None:
+        if not isinstance(debug_flags, dict) or set(debug_flags) != {"offset", "default", "flags"}:
+            raise PatchError("configurable.debug_flags has unsupported or missing fields")
+        debug_offset = _offset(debug_flags.get("offset"), "configurable.debug_flags.offset")
+        if debug_offset in seen_configurable_offsets:
+            raise PatchError(f"duplicate configurable offset 0x{debug_offset:x}")
+        expected_flags = {
+            "infinite_health": 1,
+            "maximum_damage": 2,
+            "disable_trainer_sight": 4,
+        }
+        if debug_flags.get("default") != 0 or debug_flags.get("flags") != expected_flags:
+            raise PatchError("configurable.debug_flags must declare the supported flags with default 0")
     return recipe
 
 
@@ -133,7 +148,7 @@ def load_config(path: str | Path, *, game: str) -> dict[str, Any]:
         raise PatchError(f"cannot read config {config_path}: {error}") from error
     if not isinstance(config, dict) or config.get("schema") != 1:
         raise PatchError("config must be an object using schema 1")
-    unknown = set(config) - {"schema", "game", "level_caps", "overflow_percent"}
+    unknown = set(config) - {"schema", "game", "level_caps", "overflow_percent", "debug"}
     if unknown:
         raise PatchError("unsupported config fields: " + ", ".join(sorted(unknown)))
     if config.get("game") != game:
@@ -156,9 +171,16 @@ def load_config(path: str | Path, *, game: str) -> dict[str, Any]:
         )
     ):
         raise PatchError("config overflow_percent must be an integer from 0 through 100")
+    debug = config.get("debug", {})
+    expected_debug = {"infinite_health", "maximum_damage", "disable_trainer_sight"}
+    if not isinstance(debug, dict) or set(debug) - expected_debug:
+        raise PatchError("config debug must contain only supported debug toggles")
+    if any(not isinstance(value, bool) for value in debug.values()):
+        raise PatchError("config debug toggles must be booleans")
     return {
         "level_caps": caps,
         "overflow_percent": overflow_percent,
+        "debug": {name: debug.get(name, False) for name in sorted(expected_debug)},
     }
 
 
@@ -272,7 +294,11 @@ def apply_recipe(
     config = (
         load_config(config_path, game=recipe["game"])
         if config_path
-        else {"level_caps": {}, "overflow_percent": None}
+        else {"level_caps": {}, "overflow_percent": None, "debug": {
+            "infinite_health": False,
+            "maximum_damage": False,
+            "disable_trainer_sight": False,
+        }}
     )
     cap_overrides = config["level_caps"]
     declared_caps = {
@@ -287,6 +313,10 @@ def apply_recipe(
     overflow_entry = recipe.get("configurable", {}).get("overflow_percent")
     if config["overflow_percent"] is not None and overflow_entry is None:
         raise PatchError("config contains overflow_percent but this recipe does not declare it")
+    debug_entry = recipe.get("configurable", {}).get("debug_flags")
+    enabled_debug = [name for name, enabled in config["debug"].items() if enabled]
+    if enabled_debug and debug_entry is None:
+        raise PatchError("config enables debug toggles but this recipe does not declare them")
     input_sha1 = _digest("sha1", original)
     canonical = input_sha1.lower() in {item.lower() for item in recipe["accepted_sha1"]}
     modified_allowed = recipe.get("allow_modified_input") is True
@@ -348,6 +378,23 @@ def apply_recipe(
         output[overflow_offset] = configured_overflow_percent
         overflow_percent_changed = configured_overflow_percent != default_overflow_percent
 
+    configured_debug = {name: bool(config["debug"].get(name, False)) for name in (
+        "infinite_health", "maximum_damage", "disable_trainer_sight"
+    )}
+    debug_flags_changed = False
+    if debug_entry is not None:
+        debug_offset = debug_entry["offset"]
+        if debug_offset >= len(output):
+            raise PatchError("configurable debug flags extend beyond the output")
+        if output[debug_offset] != debug_entry["default"]:
+            raise PatchError(
+                "configurable debug flags expected generated default "
+                f"{debug_entry['default']} at 0x{debug_offset:x}, got {output[debug_offset]}"
+            )
+        mask = sum(debug_entry["flags"][name] for name, enabled in configured_debug.items() if enabled)
+        output[debug_offset] = mask
+        debug_flags_changed = mask != debug_entry["default"]
+
     _repair_cartridge_checksum(output, recipe["game"])
 
     result = bytes(output)
@@ -358,6 +405,7 @@ def apply_recipe(
         and canonical_expected
         and not effective_overrides
         and not overflow_percent_changed
+        and not debug_flags_changed
         and output_sha256.lower() != canonical_expected.lower()
     ):
         raise PatchError(
@@ -392,5 +440,6 @@ def apply_recipe(
         "writes": len(recipe["writes"]) if source_copy is None else len(source_copy["operations"]),
         "level_cap_overrides": effective_overrides,
         "overflow_percent": configured_overflow_percent,
+        "debug": configured_debug,
         "output": str(destination),
     }

@@ -56,6 +56,18 @@ always permanently ends the run. Omitting the file uses the identical defaults
 embedded in the recipe. The patcher rejects unsupported fields, misspelled bosses,
 and out-of-range percentages or levels rather than silently producing a malformed game.
 
+### Testing cheats
+
+Every supported game has three independent debug switches in the graphical
+patcher and in its JSON config under `debug`: `infinite_health`,
+`maximum_damage`, and `disable_trainer_sight`. They are all off by default.
+Infinite health suppresses battle damage to the player's Pokémon; maximum
+damage makes a player's damaging hit remove the target's current HP; disabling
+trainer sight prevents sight-line challenges while still allowing the player
+to start those battles by talking to trainers. Debug settings are baked into
+the new patched copy, so make a separate build for each combination being
+tested. They are test aids, not part of the Quicklocke ruleset.
+
 Inspect an input without changing it:
 
 ```sh

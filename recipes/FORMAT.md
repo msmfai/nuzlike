@@ -14,6 +14,9 @@ Recipes are UTF-8 JSON using schema `1`. A release recipe declares:
   level from 1 through 100.
 - `configurable.overflow_percent`: an optional one-byte percentage site from 0
   through 100.
+- `configurable.debug_flags`: an optional one-byte bit-field whose declared
+  masks independently enable infinite health, maximum damage, and disabled
+  trainer sight. Its generated default must be zero.
 
 Each fingerprint has a non-negative byte `offset` and `expected_hex`. Each write
 adds `replacement_hex` of exactly the same length. Writes may not overlap or
@@ -51,6 +54,11 @@ verify every original write region before changing it.
   "schema": 1,
   "game": "yellow",
   "overflow_percent": 75,
+  "debug": {
+    "infinite_health": false,
+    "maximum_damage": false,
+    "disable_trainer_sight": false
+  },
   "level_caps": {
     "surge": 24
   }
@@ -59,7 +67,8 @@ verify every original write region before changing it.
 
 The game must match the recipe, each cap key must be declared by that recipe,
 levels must be integers from 1 through 100, and `overflow_percent` must be from
-0 through 100. A full-party wipe always permanently invalidates the run save.
+0 through 100. Debug values must be booleans and every declared switch is off
+when omitted. A full-party wipe always permanently invalidates the run save.
 Configuration changes only declared single-byte sites after
 all fixed recipe writes have been validated. Unknown keys, duplicate sites,
 inconsistent generated defaults, booleans, and out-of-range levels fail before
