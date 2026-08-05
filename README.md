@@ -100,14 +100,28 @@ playable as a normal Pokémon game.
 
 ## Supported games
 
-Quicklocke currently recognizes these canonical English releases:
+Quicklocke identifies games by their contents, not their filenames. You need a
+backup of the exact English release shown below for the game you want to patch;
+you do not need all nine.
 
-- Pokémon Red and Blue
-- Pokémon Yellow
-- Pokémon Gold and Silver
-- Pokémon Crystal 1.0
-- Pokémon Emerald
-- Pokémon FireRed 1.0 and LeafGreen 1.0
+| Game | Required release | Canonical SHA-1 |
+| --- | --- | --- |
+| Pokémon Red | USA/Europe, English | `ea9bcae617fdf159b045185467ae58b2e4a48b9a` |
+| Pokémon Blue | USA/Europe, English | `d7037c83e1ae5b39bde3c30787637ba1d4c48ce2` |
+| Pokémon Yellow | USA/Europe, English | `cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1` |
+| Pokémon Gold | USA/Europe, English | `d8b8a3600a465308c9953dfa04f0081c05bdcb94` |
+| Pokémon Silver | USA/Europe, English | `49b163f7e57702bc939d642a18f591de55d92dae` |
+| Pokémon Crystal | USA/Europe, English, version 1.0 | `f4cd194bdee0d04ca4eac29e09b8e4e9d818c133` |
+| Pokémon Emerald | USA/Europe, English | `f3ae088181bf583e55daf962a92bb46f4f1d07b7` |
+| Pokémon FireRed | USA, English, version 1.0—not 1.1 | `41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc` |
+| Pokémon LeafGreen | USA, English, version 1.0—not 1.1 | `574fa542ffebb14be69902d1d36f1ec0a4afd71e` |
+
+A raw unmodified backup is ideal. Some dumping tools prepend a common 512-byte
+copier header. The graphical and command-line patchers automatically remove
+that header only when the underlying ROM then passes the normal canonical hash
+or protected-fingerprint checks. The patched output is written in standard
+headerless form. Arbitrary prefixes, unknown revisions, and near matches remain
+rejected rather than being patched speculatively.
 
 Ruby and Sapphire are not supported; use Emerald for the Hoenn version of the
 challenge. Every listed port is still undergoing emulator and owner playtesting.

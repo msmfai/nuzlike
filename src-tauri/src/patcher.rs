@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
 
+const COPIER_HEADER_SIZE: usize = 512;
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Region {
@@ -141,6 +143,7 @@ pub struct PatchReport {
     pub game: String,
     pub input_sha1: String,
     pub input_kind: String,
+    pub input_normalization: String,
     pub output_sha256: String,
     pub writes: usize,
     pub level_cap_overrides: BTreeMap<String, u8>,
@@ -432,7 +435,7 @@ pub fn parse_config(json: &str) -> Result<UserConfig, String> {
 pub fn apply(
     recipe: &Recipe,
     config: Option<&UserConfig>,
-    original: &[u8],
+    supplied: &[u8],
 ) -> Result<PatchResult, String> {
     if let Some(config) = config
         && config.game != recipe.game
@@ -469,6 +472,39 @@ pub fn apply(
     {
         return Err("config enables debug toggles but this recipe does not declare them".into());
     }
+
+    let supported = |data: &[u8]| {
+        let sha1 = digest_sha1(data);
+        recipe
+            .accepted_sha1
+            .iter()
+            .any(|hash| hash.eq_ignore_ascii_case(&sha1))
+            || (recipe.allow_modified_input
+                && !recipe.fingerprints.is_empty()
+                && recipe
+                    .fingerprints
+                    .iter()
+                    .enumerate()
+                    .all(|(index, region)| {
+                        check_region(
+                            data,
+                            region.offset,
+                            &region.expected_hex,
+                            &format!("fingerprints[{index}]"),
+                        )
+                        .is_ok()
+                    }))
+    };
+    let (original, input_normalization) = if supported(supplied) {
+        (supplied, "none")
+    } else if supplied.len() > COPIER_HEADER_SIZE && supported(&supplied[COPIER_HEADER_SIZE..]) {
+        (
+            &supplied[COPIER_HEADER_SIZE..],
+            "removed-512-byte-copier-header",
+        )
+    } else {
+        (supplied, "none")
+    };
 
     let input_sha1 = digest_sha1(original);
     let canonical = recipe
@@ -595,6 +631,7 @@ pub fn apply(
                 "compatible-modified"
             }
             .into(),
+            input_normalization: input_normalization.into(),
             output_sha256,
             writes: recipe
                 .source_copy
@@ -671,6 +708,34 @@ mod tests {
         assert_eq!(result.bytes, expected);
         assert_eq!(result.report.overflow_percent, Some(50));
         assert_eq!(result.report.debug.mask(), 5);
+        assert_eq!(result.report.input_normalization, "none");
+    }
+
+    #[test]
+    fn removes_validated_512_byte_copier_header() {
+        let (data, recipe_json) = fixture();
+        let recipe = parse_recipe(&recipe_json).unwrap();
+        let mut supplied = vec![0xa5; COPIER_HEADER_SIZE];
+        supplied.extend_from_slice(&data);
+        let result = apply(&recipe, None, &supplied).unwrap();
+        let mut expected = data;
+        expected[16..20].copy_from_slice(&[0xa0, 0xa1, 0xa2, 0xa3]);
+        assert_eq!(result.bytes, expected);
+        assert_eq!(
+            result.report.input_normalization,
+            "removed-512-byte-copier-header"
+        );
+        assert_eq!(result.report.input_kind, "canonical");
+    }
+
+    #[test]
+    fn does_not_strip_arbitrary_unsupported_prefix() {
+        let (mut data, recipe_json) = fixture();
+        let recipe = parse_recipe(&recipe_json).unwrap();
+        data.reverse();
+        let mut supplied = vec![0; COPIER_HEADER_SIZE];
+        supplied.extend_from_slice(&data);
+        assert!(apply(&recipe, None, &supplied).is_err());
     }
 
     #[test]

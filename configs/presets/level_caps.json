@@ -31,16 +31,6 @@
       "medium": {"falkner":9,"bugsy":16,"whitney":20,"morty":25,"chuck":30,"pryce":31,"jasmine":35,"clair":40,"will":42,"koga":44,"bruno":46,"karen":47,"champion":50},
       "hard": {"falkner":8,"bugsy":14,"whitney":18,"morty":23,"chuck":28,"pryce":30,"jasmine":33,"clair":38,"will":40,"koga":42,"bruno":44,"karen":45,"champion":48}
     },
-    "ruby": {
-      "easy": {"roxanne":17,"brawly":20,"wattson":26,"flannery":30,"norman":34,"winona":35,"tate_and_liza":45,"wallace":46,"sidney":51,"phoebe":53,"glacia":55,"drake":57,"champion":60},
-      "medium": {"roxanne":15,"brawly":18,"wattson":23,"flannery":28,"norman":31,"winona":33,"tate_and_liza":42,"wallace":43,"sidney":49,"phoebe":51,"glacia":53,"drake":55,"champion":58},
-      "hard": {"roxanne":13,"brawly":17,"wattson":21,"flannery":26,"norman":29,"winona":31,"tate_and_liza":39,"wallace":41,"sidney":47,"phoebe":49,"glacia":51,"drake":53,"champion":56}
-    },
-    "sapphire": {
-      "easy": {"roxanne":17,"brawly":20,"wattson":26,"flannery":30,"norman":34,"winona":35,"tate_and_liza":45,"wallace":46,"sidney":51,"phoebe":53,"glacia":55,"drake":57,"champion":60},
-      "medium": {"roxanne":15,"brawly":18,"wattson":23,"flannery":28,"norman":31,"winona":33,"tate_and_liza":42,"wallace":43,"sidney":49,"phoebe":51,"glacia":53,"drake":55,"champion":58},
-      "hard": {"roxanne":13,"brawly":17,"wattson":21,"flannery":26,"norman":29,"winona":31,"tate_and_liza":39,"wallace":41,"sidney":47,"phoebe":49,"glacia":51,"drake":53,"champion":56}
-    },
     "emerald": {
       "easy": {"roxanne":17,"brawly":21,"wattson":27,"flannery":31,"norman":34,"winona":35,"tate_and_liza":45,"juan":48,"sidney":51,"phoebe":53,"glacia":55,"drake":57,"champion":60},
       "medium": {"roxanne":15,"brawly":19,"wattson":24,"flannery":29,"norman":31,"winona":33,"tate_and_liza":42,"juan":46,"sidney":49,"phoebe":51,"glacia":53,"drake":55,"champion":58},

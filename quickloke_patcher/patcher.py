@@ -16,6 +16,9 @@ class PatchError(ValueError):
     """A recipe or input failed a safety check."""
 
 
+COPIER_HEADER_SIZE = 512
+
+
 def _digest(algorithm: str, data: bytes) -> str:
     return hashlib.new(algorithm, data).hexdigest()
 
@@ -274,6 +277,35 @@ def _repair_cartridge_checksum(output: bytearray, game: str) -> None:
     output[0x14E:0x150] = checksum.to_bytes(2, "big")
 
 
+def _fingerprints_match(data: bytes, recipe: dict[str, Any]) -> bool:
+    try:
+        for index, fingerprint in enumerate(recipe["fingerprints"]):
+            _check_region(data, fingerprint, f"fingerprints[{index}]")
+    except PatchError:
+        return False
+    return True
+
+
+def _supported_input(data: bytes, recipe: dict[str, Any]) -> bool:
+    input_sha1 = _digest("sha1", data).lower()
+    canonical = input_sha1 in {item.lower() for item in recipe["accepted_sha1"]}
+    return canonical or (
+        recipe.get("allow_modified_input") is True
+        and bool(recipe["fingerprints"])
+        and _fingerprints_match(data, recipe)
+    )
+
+
+def _normalize_input(data: bytes, recipe: dict[str, Any]) -> tuple[bytes, str]:
+    if _supported_input(data, recipe):
+        return data, "none"
+    if len(data) > COPIER_HEADER_SIZE:
+        without_header = data[COPIER_HEADER_SIZE:]
+        if _supported_input(without_header, recipe):
+            return without_header, "removed-512-byte-copier-header"
+    return data, "none"
+
+
 def apply_recipe(
     input_path: str | Path,
     recipe_path: str | Path,
@@ -286,11 +318,12 @@ def apply_recipe(
     try:
         if source.resolve() == destination.resolve():
             raise PatchError("refusing to overwrite the input; choose a separate output")
-        original = source.read_bytes()
+        supplied = source.read_bytes()
     except OSError as error:
         raise PatchError(f"cannot read input {source}: {error}") from error
 
     recipe = load_recipe(recipe_path)
+    original, input_normalization = _normalize_input(supplied, recipe)
     config = (
         load_config(config_path, game=recipe["game"])
         if config_path
@@ -436,6 +469,7 @@ def apply_recipe(
         "game": recipe["game"],
         "input_sha1": input_sha1,
         "input_kind": "canonical" if canonical else "compatible-modified",
+        "input_normalization": input_normalization,
         "output_sha256": output_sha256,
         "writes": len(recipe["writes"]) if source_copy is None else len(source_copy["operations"]),
         "level_cap_overrides": effective_overrides,
