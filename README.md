@@ -1,116 +1,227 @@
-# [Pre-Alpha] Quicklocke Patcher
+# [Pre-Alpha] Quicklocke
 
-This public repository contains only the ROM-free Quicklocke patching machinery,
-transparent recipe metadata, tests, and release automation. It does not contain
-Pokémon game data, ROM images, saves, decompilation sources, symbols, maps, or
-generated hacked games.
+Quicklocke is a Pokémon challenge mode about building a team with scarce
+encounters and strict level caps—without spending hours grinding replacements.
+It modifies your own copy of a Generation I, II, or III game and enforces the
+rules in the game itself.
 
-The patcher source is copyright © 2026 Quicklocke contributors and is free
-software under the GNU General Public License, version 3 or (at your option) any
-later version (`GPL-3.0-or-later`). The license covers this original patching
-machinery; it does not grant rights to Pokémon games or other third-party works.
+The basic rhythm is simple: catch one Pokémon in each area, build a team from
+what you find, stay under the next boss cap, and earn reliable team training by
+beating Gyms. A fainted Pokémon is retired to the Memorial. A full-party wipe
+ends the run. Defeat the Champion and every Quicklocke restriction is lifted.
 
-Quicklocke is a configurable challenge mode for the main-series Generation I–III
-games. It uses explicit boss caps, shares part of capped trainer experience,
-limits random encounters by named location, memorializes fainted Pokémon until
-the Championship, offers paid Gym training, and preserves randomizer-owned data.
+> **This is a very early pre-alpha. It will almost certainly softlock or break
+> somewhere.** Do not use a valuable save. Keep your original game backup
+> untouched and begin with a disposable save you are prepared to lose.
 
-## Current status
+## What changes?
 
-**This build will almost certainly softlock somewhere.** It is an extremely
-early pre-alpha, not a stable release and not suitable for a serious run. Keep
-your original backup untouched, use disposable test saves, and expect to lose
-progress or restart.
+### One encounter per area
 
-The graphical app and ROM-free recipes
-for all 11 supported games are present, but the ports and packaged applications
-are still undergoing emulator and owner playtesting. Emerald has passed one
-limited owner playtest of its prepared Rustboro Gym Pass fixture; that is not an
-end-to-end progression test or a claim that Emerald is free of blockers.
+Random encounters remain disabled until you first obtain an item capable of
+catching Pokémon. From then on, each named location gives you one random wild
+battle. Different floors, grass, caves, water, fishing spots, and other random
+encounter methods sharing that location name all count as the same area.
 
-## Use
+Your one encounter plays legendary battle music. The next successful encounter
+roll in that area opens a battle with an empty opponent slot, displays
+“But no one came…”, and returns you to the overworld. That scene is shown only
+once in the entire playthrough so it does not become repetitive. After it has
+been seen, exhausted areas suppress later encounters silently.
 
-The graphical application is the primary patcher. A single build recognizes all
-11 supported games, presents the appropriate cap defaults and wipe rule, and
-writes a separate patched copy. Native packages are built for Android, Windows,
-Linux, and macOS on both ARM64 and x86-64; see `BUILDING.md` for the exact matrix.
-Its level-cap selector provides explicit Easy, Medium, and Hard tables for every
-game. Medium is the documented community-default table; Easy and Hard are
-Quicklocke-authored balance choices rather than arithmetic offsets. Every boss
-level remains directly editable, which changes the selector to Custom.
+Gift Pokémon and scripted static encounters do not consume the area's random
+encounter. Before the first Badge, wild Pokémon below level 5 are raised to
+level 5 so an unlucky early encounter is still useful. Wild levels return to
+their normal or randomized values after the first Badge.
 
-The Python 3.11 command-line interface remains available for automation. Apply a
-published recipe to your own legally obtained backup:
+### No wild EXP
 
-```sh
-python3 -m quickloke_patcher apply \
-  --input /path/to/your-backup.gbc \
-  --recipe recipes/<release>.json \
-  --config configs/red.json \
-  --output /path/to/quicklocke.gbc
-```
+Wild battles give no experience while the challenge is active. Trainer battles
+are the main source of experience, making the available EXP part of the team-
+building puzzle instead of an invitation to grind.
 
-Copy the matching file under `configs/`, set `overflow_percent` from 0 through
-100, edit any named boss level, and pass it with `--config`. A full-party wipe
-always permanently ends the run. Omitting the file uses the identical defaults
-embedded in the recipe. The patcher rejects unsupported fields, misspelled bosses,
-and out-of-range percentages or levels rather than silently producing a malformed game.
+### Enforced boss level caps
 
-### Testing cheats
+Your Pokémon cannot advance beyond the configured cap for the next Gym, Elite
+Four member, or Champion. The cap also applies to Rare Candies, Day Care, and
+scripted level changes—not only ordinary battle EXP.
 
-Every supported game has three independent debug switches in the graphical
-patcher and in its JSON config under `debug`: `infinite_health`,
-`maximum_damage`, and `disable_trainer_sight`. They are all off by default.
-Infinite health suppresses battle damage to the player's Pokémon; maximum
-damage makes a player's damaging hit remove the target's current HP; disabling
-trainer sight prevents sight-line challenges while still allowing the player
-to start those battles by talking to trainers. Debug settings are baked into
-the new patched copy, so make a separate build for each combination being
-tested. They are test aids, not part of the Quicklocke ruleset.
+If a Pokémon at the cap would receive trainer EXP, it gets none of that award.
+By default, 75% of the blocked EXP is divided across eligible conscious
+teammates below the cap. It is one shared pool, never multiplied, and no
+recipient can cross the current cap. The patcher lets you change the percentage
+from 0% to 100%.
 
-Inspect an input without changing it:
+The player profile shows the current minimum training level and maximum cap
+while the challenge is active.
 
-```sh
-python3 -m quickloke_patcher inspect --input /path/to/your-backup.gba
-```
+### Gym Pass training
 
-The patcher never edits its input in place. It checks the input hash and/or every
-protected code fingerprint, checks the expected bytes at every write site, writes
-only declared fixed-size regions, and atomically creates a separate output.
+Every Poké Mart sells a consumable **Gym Pass** for ₽1,000. Use one inside a Gym
+you have already defeated to train every eligible Pokémon in your current party
+up to that Gym's configured level. The pass is consumed only when at least one
+party member can benefit.
+
+In games with a clock, the training represents three days spent at the Gym and
+advances time-based events accordingly. The Gym Pass is designed to make a new
+or under-levelled team member usable without wild grinding.
+
+### The Memorial and permadeath
+
+After a battle, fainted party members are moved automatically into reserved PC
+boxes named **MEMORIAL**. Before becoming Champion, you may inspect or release
+Pokémon there, but you cannot withdraw, move, rename, deposit, or give items to
+them. The reserved boxes are named from the beginning so they cannot be mistaken
+for ordinary storage.
+
+If the Memorial has no room, Quicklocke will not delete or partially move a
+Pokémon. It stops and reports that storage must be freed.
+
+A full-party wipe invalidates the run save. Forgiving checkpoint mode was
+removed because these cartridges cannot safely maintain the exact second save
+needed for a true rollback. For now, Quicklocke is hardcore only.
+
+### Cheaper training items
+
+EV-improving items are sold in every Poké Mart for one tenth of their usual
+price, providing another controlled way to develop the small roster available
+to you.
+
+### The challenge ends at the Championship
+
+After the first Champion victory, the game clearly announces that Quicklocke is
+over. Normal wild encounters and wild EXP return, level caps and faint
+retirement are disabled, the profile stops showing the Quicklocke range, and
+the Memorial becomes ordinary accessible PC storage. The completed save remains
+playable as a normal Pokémon game.
+
+## Supported games
+
+Quicklocke currently recognizes these canonical English releases:
+
+- Pokémon Red and Blue
+- Pokémon Yellow
+- Pokémon Gold and Silver
+- Pokémon Crystal 1.0
+- Pokémon Emerald
+- Pokémon FireRed 1.0 and LeafGreen 1.0
+
+Ruby and Sapphire are not supported; use Emerald for the Hoenn version of the
+challenge. Every listed port is still undergoing emulator and owner playtesting.
+Emerald has received the most manual testing, but even it is not known to be
+completable without a blocker.
+
+## Make a Quicklocke game
+
+You need your own legally obtained backup of a supported game. Quicklocke does
+not include or download Pokémon games, ROMs, saves, artwork, or extracted game
+data.
+
+1. Keep an untouched copy of your original backup.
+2. Download the patcher for your platform from the GitHub release.
+3. Select your game backup. The patcher identifies the game automatically.
+4. Choose Easy, Medium, Hard, or edit individual boss caps.
+5. Set the capped-EXP sharing percentage if you do not want the 75% default.
+6. Create a new patched copy and load that copy in your emulator or hardware.
+7. Start with a fresh, disposable save.
+
+The patcher never edits the selected input in place. It validates the game and
+every protected patch site before atomically writing a separate output file. An
+unrecognized revision or incompatible modified game is rejected instead of
+being patched speculatively.
+
+Pre-alpha builds target Android, Windows, Linux, and macOS, with ARM64 and
+x86-64 variants where the platform supports both. A missing package in a given
+release means that build has not yet passed packaging checks; see
+[BUILDING.md](BUILDING.md) if you want to build the app yourself.
+
+### Choosing level caps
+
+- **Medium** uses published community hardcore-Nuzlocke cap tables and is the
+  default.
+- **Easy** and **Hard** use separate, hand-authored per-boss tables. They are
+  not blanket numerical offsets and are not presented as community standards.
+- **Custom** appears when you edit any individual boss value.
+
+All boss values remain editable, including ambiguous cases such as Yellow's
+solo level-28 Raichu. The source comparison and every Medium default are
+documented in [configs/LEVEL_CAP_SOURCES.md](configs/LEVEL_CAP_SOURCES.md).
+
+### Debug builds
+
+The patcher provides three independent test switches, all disabled by default:
+
+- infinite health for the player's Pokémon;
+- maximum damage from the player's damaging attacks; and
+- disabled trainer sight, while still allowing battles when you speak to them.
+
+These options are for rapidly testing a pre-alpha port, not part of the
+Quicklocke rules. They are baked into the patched copy, so create a separate
+debug build rather than using one for a real run.
 
 ## Randomizer compatibility
 
-The supported order is:
+Quicklocke is designed to preserve encounter, species, trainer, item, and move
+tables owned by compatible randomizers. Use this order:
 
-1. start with your own supported backup;
-2. randomize it with the release's named compatibility profile; and
-3. apply the Quicklocke recipe to the randomized result.
+1. make a backup of your supported game;
+2. randomize that backup using the compatibility profile named by the release;
+3. apply Quicklocke to the randomized result.
 
-Unlike a whole-file binary delta, a structured recipe changes only declared
-Quicklocke code and save-system regions. All randomizer-owned encounter, species,
-trainer, item, and move data outside those regions is left byte-for-byte intact.
-Modified inputs are accepted only when the release explicitly permits them and
-all invariant fingerprints still match.
+The configured boss caps do not inspect randomized trainer parties. Quicklocke
+changes only its declared code and configuration regions and accepts a modified
+input only when all invariant fingerprints still match. Compatibility is a
+design goal, not a promise that every randomizer and every option combination
+will work during pre-alpha.
 
-## Supported families
+## Command-line use
 
-The patcher recognizes the canonical English releases of Red, Blue, Yellow,
-Gold, Silver, Crystal 1.0, Ruby 1.0, Sapphire 1.0, Emerald, FireRed 1.0, and
-LeafGreen 1.0. A ROM-free development recipe is embedded for every listed game;
-see `recipes/manifest.json` for the exact release catalog. These recipes remain
-pre-release until owner playtesting is complete.
-
-## Repository boundary
-
-This repository has independent public history. Private development sources and
-decomp work remain in a separate private repository. Run the public audit before
-every commit or release:
+The graphical app is the normal way to use Quicklocke. A Python 3.11 command-
+line patcher is also included for automation:
 
 ```sh
-python3 tools/release_audit.py --tree . --history
-python3 -m unittest discover -s tests -v
+python3 -m quickloke_patcher inspect --input /path/to/your-backup.gba
+
+python3 -m quickloke_patcher apply \
+  --input /path/to/your-backup.gba \
+  --recipe recipes/emerald.json \
+  --config configs/emerald.json \
+  --output /path/to/quicklocke-emerald.gba
 ```
 
-Quicklocke is an unofficial fan project and is not affiliated with Nintendo,
-Game Freak, Creatures, or The Pokémon Company. No copyrighted game data is
-provided; users must supply their own backups.
+Copy the matching file in [`configs/`](configs/) before editing it. Invalid
+boss names, unknown settings, incorrect game selections, and out-of-range
+values fail before an output is created.
+
+## Reporting a problem
+
+When a run freezes, restarts, corrupts graphics, or behaves differently from
+the rules above, please include:
+
+- the game and exact revision;
+- whether the input was randomized and with which settings;
+- the patcher version and configuration used;
+- the last reliable in-game action before the failure; and
+- an emulator save state or ordinary save made before the failure, if it is
+  safe and legal for you to share it.
+
+Never send copyrighted ROM files with a report.
+
+## License and project status
+
+The patcher, recipes, tests, and release tooling in this repository are free
+software under the GNU General Public License version 3 or later
+(`GPL-3.0-or-later`). The license covers this project's original patching
+machinery; it grants no rights to Pokémon or any other third-party work.
+
+This public repository deliberately contains no ROM images, replacement games,
+saves, decompilation source, extracted assets, symbols, or maps. Public recipes
+describe guarded transformations that users apply to their own backups.
+
+Quicklocke is an unofficial fan project and is not affiliated with or endorsed
+by Nintendo, Game Freak, Creatures, or The Pokémon Company.
+
+Developers and release reviewers can find build instructions in
+[BUILDING.md](BUILDING.md), configuration details in
+[configs/README.md](configs/README.md), and the auditable recipe format in
+[recipes/FORMAT.md](recipes/FORMAT.md).
