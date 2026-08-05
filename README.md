@@ -1,6 +1,7 @@
-# [Pre-Alpha] Quicklocke
+> [!WARNING]
+> Hey there! I'm taking a top down approach to development here where I started with something vibe coded and then clean things up. In pre alpha the documentation is purely AI generated so I can focus on the programming, it will be hand written at final release. The AI-generated documentation is overly verbose by design at this point so all the features of the mod are visible to you.
 
-Hey there! I'm taking a top down approach to development here where I started with something vibe coded and then clean things up. In pre alpha the documentation is purely AI generated so I can focus on the programming, it will be hand written at final release
+# [Pre-Alpha] Quicklocke
 
 Quicklocke is a Pokémon challenge mode about building a team with scarce
 encounters and strict level caps—without spending hours grinding replacements.
