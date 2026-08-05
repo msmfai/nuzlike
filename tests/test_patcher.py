@@ -73,7 +73,30 @@ class PatcherTests(unittest.TestCase):
         expected[16:20] = bytes.fromhex("a0a1a2a3")
         self.assertEqual(self.output.read_bytes(), expected)
         self.assertEqual(result["input_kind"], "canonical")
+        self.assertEqual(result["input_normalization"], "none")
         self.assertEqual(self.input.read_bytes(), self.data)
+
+    def test_common_copier_header_is_removed_only_after_validation(self) -> None:
+        copier_header = bytes([0xA5]) * 512
+        supplied = copier_header + self.data
+        self.input.write_bytes(supplied)
+        self.write_recipe()
+        result = apply_recipe(self.input, self.recipe, self.output)
+        expected = bytearray(self.data)
+        expected[16:20] = bytes.fromhex("a0a1a2a3")
+        self.assertEqual(self.output.read_bytes(), expected)
+        self.assertEqual(result["input_kind"], "canonical")
+        self.assertEqual(
+            result["input_normalization"], "removed-512-byte-copier-header"
+        )
+        self.assertEqual(self.input.read_bytes(), supplied)
+
+    def test_arbitrary_prefix_is_not_removed_when_body_is_unsupported(self) -> None:
+        self.input.write_bytes(bytes(512) + bytes(reversed(self.data)))
+        self.write_recipe()
+        with self.assertRaises(PatchError):
+            apply_recipe(self.input, self.recipe, self.output)
+        self.assertFalse(self.output.exists())
 
     def test_modified_input_preserves_randomized_region(self) -> None:
         randomized = bytearray(self.data)

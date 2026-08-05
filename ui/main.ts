@@ -47,6 +47,7 @@ interface PatchReport {
   game: string;
   inputSha1: string;
   inputKind: string;
+  inputNormalization: string;
   outputSha256: string;
   writes: number;
   levelCapOverrides: Record<string, number>;
@@ -63,6 +64,19 @@ let selectedBytes: Uint8Array | null = null;
 let inspection: Inspection | null = null;
 let config: UserConfig | null = null;
 let capSelection: LevelCapSelection = "medium";
+let selectedNormalization = "none";
+
+const releaseRequirements: Record<string, string> = {
+  red: "English USA/Europe",
+  blue: "English USA/Europe",
+  yellow: "English USA/Europe",
+  gold: "English USA/Europe",
+  silver: "English USA/Europe",
+  crystal: "English USA/Europe · version 1.0",
+  emerald: "English USA/Europe",
+  firered: "English USA · version 1.0 (not 1.1)",
+  leafgreen: "English USA · version 1.0 (not 1.1)",
+};
 
 function escapeHtml(value: string): string {
   return value
@@ -126,8 +140,14 @@ function render(): void {
   const ready = Boolean(selectedBytes && selectedGame?.recipeId && config);
   const capLabel = titleCase(capSelection);
   const detected = selectedGame
-    ? `<strong>${escapeHtml(selectedGame.name)}</strong><span>${selectedBytes ? `${(selectedBytes.length / 1048576).toFixed(2)} MiB` : ""}</span>`
-    : "<strong>No game selected</strong><span>Red through LeafGreen</span>";
+    ? `<strong>${escapeHtml(selectedGame.name)}</strong><span>${inspection ? `${(inspection.size / 1048576).toFixed(2)} MiB · ${escapeHtml(releaseRequirements[selectedGame.id])}` : ""}</span>${selectedNormalization !== "none" ? "<span>512-byte copier header detected; output will be normalized.</span>" : ""}`
+    : "<strong>No game selected</strong><span>Exact English releases listed below</span>";
+  const compatibilityRows = catalog.games.map((game) => `
+    <tr>
+      <td>${escapeHtml(game.name)}</td>
+      <td>${escapeHtml(releaseRequirements[game.id])}</td>
+      <td title="${escapeHtml(game.canonicalSha1)}">${escapeHtml(compactHash(game.canonicalSha1))}</td>
+    </tr>`).join("");
 
   app.innerHTML = `
     <section class="shell">
@@ -141,7 +161,7 @@ function render(): void {
       </header>
 
       <section class="intro">
-        <p>Choose your own game backup. The patcher identifies the version, applies its matching Quicklocke recipe, and writes a separate file.</p>
+        <p>Choose your own backup of an exact supported English release. The patcher verifies its content, applies the matching Quicklocke recipe, and writes a separate file.</p>
       </section>
 
       <div class="workspace">
@@ -155,6 +175,14 @@ function render(): void {
           ${inspection ? `<p class="hash" title="${inspection.sha1}">SHA-1 ${compactHash(inspection.sha1)}</p>` : ""}
           ${selectedGame && !selectedGame.recipeId ? `
             <p class="notice">This development build is incomplete: no patch recipe is installed for this game.</p>` : ""}
+          <details class="compatibility">
+            <summary>Required game versions <span>exact releases</span></summary>
+            <p>Filenames do not matter. A common 512-byte copier header is detected and safely removed only after the underlying game passes validation.</p>
+            <div class="compatibility-scroll"><table>
+              <thead><tr><th>Game</th><th>Release</th><th>SHA-1</th></tr></thead>
+              <tbody>${compatibilityRows}</tbody>
+            </table></div>
+          </details>
         </section>
 
         <section class="card options-card ${config ? "" : "disabled"}">
@@ -215,7 +243,7 @@ function render(): void {
       </section>
 
       <footer>
-        <span>Supports Red, Blue, Yellow, Gold, Silver, Crystal, Ruby, Sapphire, Emerald, FireRed, and LeafGreen.</span>
+        <span>Supports Red, Blue, Yellow, Gold, Silver, Crystal, Emerald, FireRed, and LeafGreen.</span>
         <span>GPL-3.0-or-later</span>
       </footer>
     </section>`;
@@ -268,10 +296,22 @@ async function chooseRom(): Promise<void> {
     if (!path || Array.isArray(path)) return;
     setStatus("Reading and identifying backup…", "working");
     const bytes = await readFile(path);
-    const details = await invoke<Inspection>("inspect_rom", bytes);
-    const game = catalog.games.find(
+    let details = await invoke<Inspection>("inspect_rom", bytes);
+    let game = catalog.games.find(
       (entry) => entry.canonicalSha1.toLowerCase() === details.sha1.toLowerCase(),
     );
+    selectedNormalization = "none";
+    if (!game && bytes.length > 512) {
+      const normalizedDetails = await invoke<Inspection>("inspect_rom", bytes.slice(512));
+      const normalizedGame = catalog.games.find(
+        (entry) => entry.canonicalSha1.toLowerCase() === normalizedDetails.sha1.toLowerCase(),
+      );
+      if (normalizedGame) {
+        details = normalizedDetails;
+        game = normalizedGame;
+        selectedNormalization = "removed-512-byte-copier-header";
+      }
+    }
     selectedPath = path;
     selectedBytes = bytes;
     inspection = details;
@@ -280,11 +320,11 @@ async function chooseRom(): Promise<void> {
     capSelection = "medium";
     render();
     if (!game) {
-      setStatus("Unsupported or modified backup. No bytes were changed.", "error");
+      setStatus("Unsupported backup. Use the exact English region and revision listed above. No bytes were changed.", "error");
     } else if (!game.recipeId) {
       setStatus(`${game.name} identified, but this build has no recipe for it.`, "error");
     } else {
-      setStatus(`${game.name} identified and ready.`, "success");
+      setStatus(`${game.name} identified and ready${selectedNormalization !== "none" ? "; copier header will be removed" : ""}.`, "success");
     }
   } catch (error) {
     setStatus(String(error), "error");
@@ -328,7 +368,8 @@ async function patchAndSave(): Promise<void> {
     }
     await writeFile(destination, bytes);
     const cheats = Object.values(report.debug).filter(Boolean).length;
-    setStatus(`Saved safely · ${report.outputSha256.slice(0, 12)}… · hardcore${cheats ? ` · ${cheats} debug cheat${cheats === 1 ? "" : "s"}` : ""}`, "success");
+    const normalized = report.inputNormalization !== "none" ? " · copier header removed" : "";
+    setStatus(`Saved safely · ${report.outputSha256.slice(0, 12)}… · hardcore${normalized}${cheats ? ` · ${cheats} debug cheat${cheats === 1 ? "" : "s"}` : ""}`, "success");
   } catch (error) {
     setStatus(String(error), "error");
   }

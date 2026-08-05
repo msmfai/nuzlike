@@ -127,6 +127,13 @@ h1 { margin: 0; font-size: clamp(1.55rem, 3vw, 2rem); line-height: 1; }
 .detected span, .choose-label { color: #8994af; font-size: 0.78rem; }
 .hash { margin: 13px 0 0; color: #707c9a; font-family: ui-monospace, monospace; font-size: 0.72rem; }
 .notice { margin: 13px 0 0; padding: 10px 12px; border-radius: 9px; color: #e2c892; background: #2b251a; font-size: 0.78rem; line-height: 1.4; }
+.compatibility { margin-top: 15px; }
+.compatibility p { margin: 11px 2px 0; color: #8994af; font-size: 0.72rem; line-height: 1.45; }
+.compatibility-scroll { margin-top: 10px; overflow-x: auto; }
+.compatibility table { width: 100%; border-collapse: collapse; color: #aeb7cc; font-size: 0.68rem; }
+.compatibility th, .compatibility td { padding: 7px 6px; border-bottom: 1px solid #293148; text-align: left; vertical-align: top; }
+.compatibility th { color: #7783a2; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.compatibility td:last-child { font-family: ui-monospace, monospace; white-space: nowrap; }
 
 fieldset { display: grid; gap: 9px; margin: 0; padding: 0; border: 0; }
 legend { margin-bottom: 9px; color: #8994af; font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }

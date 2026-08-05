@@ -35,7 +35,6 @@ Champion cap`.
 | Yellow | `12, 21, 28, 32, 50, 50, 54, 55 | 56, 58, 60, 62 | 65` | NU, RN, [NT Yellow](https://nuzlocketracker.org/guides/yellow) |
 | Gold / Silver | `9, 16, 20, 25, 30, 31, 35, 40 | 42, 44, 46, 47 | 50` | NU, RN, [NT Gold](https://nuzlocketracker.org/guides/gold) |
 | Crystal | `9, 16, 20, 25, 30, 31, 35, 40 | 42, 44, 46, 47 | 50` | NU, RN with adjudication, [NT Crystal](https://nuzlocketracker.org/guides/crystal) |
-| Ruby / Sapphire | `15, 18, 23, 28, 31, 33, 42, 43 | 49, 51, 53, 55 | 58` | NU, RN with adjudication, [NT Ruby](https://nuzlocketracker.org/guides/ruby), [NT Sapphire](https://nuzlocketracker.org/guides/sapphire) |
 | Emerald | `15, 19, 24, 29, 31, 33, 42, 46 | 49, 51, 53, 55 | 58` | NU, RN, [NT Emerald](https://nuzlocketracker.org/guides/emerald) |
 | FireRed / LeafGreen | `14, 21, 24, 29, 43, 43, 47, 50 | 54, 56, 58, 60 | 63` | NU, RN, [NT FireRed](https://nuzlocketracker.org/guides/fire-red) |
 
@@ -56,11 +55,6 @@ voluntarily entering at 26, not a shared cap convention. The default is therefor
 
 RN lists level 15, while NU and NT list level 16. Quicklocke uses 16, the value
 supported by two of the three community sources.
-
-### Ruby/Sapphire Winona
-
-RN lists level 34, while NU and the Ruby and Sapphire NT guides list level 33.
-Quicklocke uses 33, the value supported by three game-specific/community sources.
 
 ### Johto mid-game order
 

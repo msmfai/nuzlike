@@ -92,8 +92,6 @@ fn game_name(game: &str) -> String {
         "gold" => "Pokémon Gold",
         "silver" => "Pokémon Silver",
         "crystal" => "Pokémon Crystal",
-        "ruby" => "Pokémon Ruby",
-        "sapphire" => "Pokémon Sapphire",
         "emerald" => "Pokémon Emerald",
         "firered" => "Pokémon FireRed",
         "leafgreen" => "Pokémon LeafGreen",
@@ -228,15 +226,13 @@ fn get_catalog() -> Result<Catalog, String> {
         });
     }
     games.sort_by_key(|game| {
-        const ORDER: [&str; 11] = [
+        const ORDER: [&str; 9] = [
             "red",
             "blue",
             "yellow",
             "gold",
             "silver",
             "crystal",
-            "ruby",
-            "sapphire",
             "emerald",
             "firered",
             "leafgreen",
@@ -324,7 +320,25 @@ mod tests {
     #[test]
     fn embeds_complete_ordered_level_cap_presets() {
         let catalog = get_catalog().unwrap();
-        assert_eq!(catalog.games.len(), 11);
+        assert_eq!(catalog.games.len(), 9);
+        assert_eq!(
+            catalog
+                .games
+                .iter()
+                .map(|game| game.id.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "red",
+                "blue",
+                "yellow",
+                "gold",
+                "silver",
+                "crystal",
+                "emerald",
+                "firered",
+                "leafgreen"
+            ]
+        );
         for game in catalog.games {
             validate_presets(&game.id, &game.default_config, &game.level_cap_presets).unwrap();
         }
