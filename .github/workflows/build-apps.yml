@@ -67,7 +67,19 @@ jobs:
           if-no-files-found: error
 
   android:
-    name: Android ARM64 and x86-64
+    name: Android ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ARM64
+            rust_target: aarch64-linux-android
+            tauri_target: aarch64
+            artifact: quickloke-android-arm64
+          - name: x86-64
+            rust_target: x86_64-linux-android
+            tauri_target: x86_64
+            artifact: quickloke-android-x86_64
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -87,14 +99,14 @@ jobs:
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,x86_64-linux-android
+          targets: ${{ matrix.rust_target }}
       - run: npm ci
       - name: Initialize Android project
         run: npm run android:init -- --ci
       - name: Build split APKs
-        run: npm run android:build -- --target aarch64 x86_64 --apk --split-per-abi --ci
+        run: npm run android:build -- --target ${{ matrix.tauri_target }} --apk --split-per-abi --ci
       - uses: actions/upload-artifact@v4
         with:
-          name: quickloke-android-arm64-x86_64
+          name: ${{ matrix.artifact }}
           path: src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
