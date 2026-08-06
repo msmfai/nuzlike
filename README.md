@@ -72,6 +72,11 @@ you have already defeated to train every eligible Pokémon in your current party
 up to that Gym's configured level. The pass is consumed only when at least one
 party member can benefit.
 
+Training advances each Pokémon one real level at a time. Ordinary level and stat
+screens are skipped, but the native move-learning prompt and evolution scene run
+whenever that level would normally trigger them. The training screen otherwise
+needs no input.
+
 In games with a clock, the training represents three days spent at the Gym and
 advances time-based events accordingly. The Gym Pass is designed to make a new
 or under-levelled team member usable without wild grinding.
@@ -112,10 +117,13 @@ to you.
 ### The challenge ends at the Championship
 
 After the first Champion victory, the game clearly announces that Quicklocke is
-over. Normal wild encounters and wild EXP return, level caps and faint
-retirement are disabled, the profile stops showing the Quicklocke range, and
-the Memorial becomes ordinary accessible PC storage. The completed save remains
-playable as a normal Pokémon game.
+over and bypasses the hack's runtime features. Normal wild encounters and wild
+EXP return; there is no Quicklocke level cap at all (rather than a cap of 100);
+faint retirement is disabled; the profile stops showing the Quicklocke range;
+and the Memorial becomes ordinary accessible PC storage. Quicklocke's special
+vitamin stock and prices and HM Bag actions also switch off. Gym Passes remain
+stocked and usable as the deliberate exception.
+The completed save remains playable under the original game's ordinary rules.
 
 ## Supported games
 
