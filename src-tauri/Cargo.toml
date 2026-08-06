@@ -1,6 +1,6 @@
 [package]
 name = "quickloke-patcher-app"
-version = "0.1.0-pre-alpha.6"
+version = "0.1.0-pre-alpha.7"
 description = "ROM-free cross-platform Quicklocke patcher"
 authors = ["Quicklocke contributors"]
 license = "GPL-3.0-or-later"
