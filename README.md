@@ -76,6 +76,18 @@ In games with a clock, the training represents three days spent at the Gym and
 advances time-based events accordingly. The Gym Pass is designed to make a new
 or under-levelled team member usable without wild grinding.
 
+### HMs work from the Bag
+
+Selecting an HM you own from the Bag or TM/HM Case presents separate **USE** and
+**TEACH** actions. USE attempts its field action without requiring a compatible
+Pokémon; TEACH always opens the original Pokémon-selection and teaching flow.
+The original Badge, story, and location requirements still apply to USE, so it
+cannot bypass normal progression.
+
+This applies to every supported game and to every HM that has an overworld
+action, including Cut, Fly, Surf, Strength, Flash, Whirlpool, Waterfall, Rock
+Smash, and Dive where those moves exist.
+
 ### The Memorial and permadeath
 
 After a battle, fainted party members are moved automatically into reserved PC
