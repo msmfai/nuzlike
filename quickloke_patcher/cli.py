@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .patcher import PatchError, apply_recipe, inspect_input
+from .randomizer import analyze_randomizer_compatibility
 
 
 def parser() -> argparse.ArgumentParser:
@@ -28,6 +29,15 @@ def parser() -> argparse.ArgumentParser:
 
     inspect = commands.add_parser("inspect", help="print hashes for an owned input")
     inspect.add_argument("--input", required=True, type=Path)
+
+    analyze = commands.add_parser(
+        "analyze-randomizer",
+        help="verify an FVX manifest and report Quicklocke write collisions",
+    )
+    analyze.add_argument("--clean", required=True, type=Path)
+    analyze.add_argument("--randomized", required=True, type=Path)
+    analyze.add_argument("--manifest", required=True, type=Path)
+    analyze.add_argument("--recipe", required=True, type=Path)
     return root
 
 
@@ -41,8 +51,15 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.output,
                 config_path=arguments.config,
             )
-        else:
+        elif arguments.command == "inspect":
             result = inspect_input(arguments.input)
+        else:
+            result = analyze_randomizer_compatibility(
+                clean_rom=arguments.clean,
+                randomized_rom=arguments.randomized,
+                manifest_path=arguments.manifest,
+                recipe_path=arguments.recipe,
+            )
     except PatchError as error:
         print(f"quickloke-patcher: {error}", file=sys.stderr)
         return 2
