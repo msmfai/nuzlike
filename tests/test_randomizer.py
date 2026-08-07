@@ -52,12 +52,41 @@ class RandomizerIntegrationTests(unittest.TestCase):
     def write_manifest(self, randomized: bytes, **changes: object) -> None:
         self.randomized.write_bytes(randomized)
         manifest = {
-            "schema": 1,
+            "schema": 2,
             "engine": "upr-fvx-quicklocke",
             "engine_version": "FVX 1.6.1",
             "upstream_base_revision": "d9700e2dd668f19e1392b8d5e8f370dd484245b3",
             "seed": "123456789",
             "settings": "427canonical-settings",
+            "semantic_settings": {
+                "starters_mode": "UNCHANGED",
+                "evolutions_mode": "UNCHANGED",
+                "movesets_mode": "UNCHANGED",
+                "trainers_mode": "UNCHANGED",
+                "trainer_levels_modified": False,
+                "trainer_level_modifier": 0,
+                "additional_boss_pokemon": 0,
+                "additional_important_pokemon": 0,
+                "additional_regular_pokemon": 0,
+                "wild_randomized": False,
+                "wild_zone_mode": "GAME",
+                "wild_type_mode": "NONE",
+                "wild_evolution_mode": "NONE",
+                "wild_levels_modified": False,
+                "wild_level_modifier": 0,
+                "static_pokemon_mode": "UNCHANGED",
+                "static_levels_modified": False,
+                "static_level_modifier": 0,
+                "tm_moves_mode": "UNCHANGED",
+                "tm_hm_compatibility_mode": "UNCHANGED",
+                "full_hm_compatibility": False,
+                "keep_field_move_tms": False,
+                "field_items_mode": "UNCHANGED",
+                "shop_items_mode": "UNCHANGED",
+                "balance_shop_prices": False,
+                "cheap_rare_candies": False,
+                "misc_tweaks": 0,
+            },
             "rom_name": "Crystal (U)",
             "rom_code": "C",
             "generation": 2,
@@ -94,6 +123,10 @@ class RandomizerIntegrationTests(unittest.TestCase):
         self.assertTrue(report["compatible"])
         self.assertEqual(report["randomizer_changed_bytes"], 4)
         self.assertEqual(report["collisions"], [])
+        self.assertEqual(
+            [rule["system"] for rule in report["semantic_rules"][:5]],
+            ["level_caps", "encounters", "hm_progression", "shops", "memorial_and_champion"],
+        )
 
     def test_overlapping_randomization_is_reported_with_exact_bytes(self) -> None:
         self.write_recipe(offset=700)
@@ -147,6 +180,67 @@ class RandomizerIntegrationTests(unittest.TestCase):
         ranges = recipe_write_ranges(load_recipe(self.recipe))
         self.assertIn((8, 12), ranges)
         self.assertIn((0x14E, 0x150), ranges)
+
+    def test_active_semantic_settings_receive_explicit_composition_rules(self) -> None:
+        self.write_recipe(offset=700)
+        after = bytearray(self.clean_bytes)
+        after[600] ^= 0xFF
+        semantics = {
+            "trainer_levels_modified": True,
+            "trainer_level_modifier": 15,
+            "wild_levels_modified": True,
+            "wild_level_modifier": -10,
+            "field_items_mode": "RANDOM",
+        }
+        default_manifest = {
+            "starters_mode": "UNCHANGED", "evolutions_mode": "UNCHANGED",
+            "movesets_mode": "UNCHANGED", "trainers_mode": "RANDOM",
+            "trainer_levels_modified": False, "trainer_level_modifier": 0,
+            "additional_boss_pokemon": 0, "additional_important_pokemon": 0,
+            "additional_regular_pokemon": 0, "wild_randomized": True,
+            "wild_zone_mode": "MAP", "wild_type_mode": "NONE",
+            "wild_evolution_mode": "NONE", "wild_levels_modified": False,
+            "wild_level_modifier": 0, "static_pokemon_mode": "UNCHANGED",
+            "static_levels_modified": False, "static_level_modifier": 0,
+            "tm_moves_mode": "RANDOM", "tm_hm_compatibility_mode": "FULL",
+            "full_hm_compatibility": True, "keep_field_move_tms": True,
+            "field_items_mode": "UNCHANGED", "shop_items_mode": "RANDOM",
+            "balance_shop_prices": True, "cheap_rare_candies": False,
+            "misc_tweaks": 0,
+        }
+        default_manifest.update(semantics)
+        self.write_manifest(bytes(after), semantic_settings=default_manifest)
+        report = analyze_randomizer_compatibility(
+            clean_rom=self.clean, randomized_rom=self.randomized,
+            manifest_path=self.manifest, recipe_path=self.recipe,
+        )
+        systems = {rule["system"] for rule in report["semantic_rules"]}
+        self.assertTrue({"randomized_trainer_levels", "randomized_wild_levels", "capture_item_gate"} <= systems)
+
+    def test_semantic_manifest_rejects_disabled_nonzero_modifier(self) -> None:
+        self.write_recipe()
+        semantics = {
+            "starters_mode": "UNCHANGED", "evolutions_mode": "UNCHANGED",
+            "movesets_mode": "UNCHANGED", "trainers_mode": "UNCHANGED",
+            "trainer_levels_modified": False, "trainer_level_modifier": 25,
+            "additional_boss_pokemon": 0, "additional_important_pokemon": 0,
+            "additional_regular_pokemon": 0, "wild_randomized": False,
+            "wild_zone_mode": "GAME", "wild_type_mode": "NONE",
+            "wild_evolution_mode": "NONE", "wild_levels_modified": False,
+            "wild_level_modifier": 0, "static_pokemon_mode": "UNCHANGED",
+            "static_levels_modified": False, "static_level_modifier": 0,
+            "tm_moves_mode": "UNCHANGED", "tm_hm_compatibility_mode": "UNCHANGED",
+            "full_hm_compatibility": False, "keep_field_move_tms": False,
+            "field_items_mode": "UNCHANGED", "shop_items_mode": "UNCHANGED",
+            "balance_shop_prices": False, "cheap_rare_candies": False,
+            "misc_tweaks": 0,
+        }
+        self.write_manifest(self.clean_bytes, semantic_settings=semantics)
+        with self.assertRaisesRegex(PatchError, "trainer_level_modifier must be zero"):
+            analyze_randomizer_compatibility(
+                clean_rom=self.clean, randomized_rom=self.randomized,
+                manifest_path=self.manifest, recipe_path=self.recipe,
+            )
 
 
 if __name__ == "__main__":
