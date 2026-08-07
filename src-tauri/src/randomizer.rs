@@ -425,6 +425,12 @@ pub fn compose(
     recipe: &Recipe,
     config: &UserConfig,
 ) -> Result<CombinedResult, String> {
+    if !recipe.has_identity_randomizer_layout() {
+        return Err(format!(
+            "{}: no verified FVX layout adapter is installed; refusing an unsafe offset-based composition",
+            recipe.game()
+        ));
+    }
     let compatibility = analyze(clean, randomized, manifest_json, recipe)?;
     let randomizer: RandomizerManifest = serde_json::from_str(manifest_json)
         .map_err(|error| format!("invalid randomizer manifest: {error}"))?;
@@ -551,6 +557,7 @@ mod tests {
             &serde_json::json!({
                 "schema":1, "id":"test", "game":"emerald", "accepted_sha1":["0".repeat(40)],
                 "allow_modified_input":true,
+                "randomizer_layout":{"schema":1,"mode":"identity"},
                 "fingerprints":[{"offset":0,"expected_hex":"0000"}],
                 "writes":[{"offset":700,"expected_hex":"0000","replacement_hex":"0102"}],
                 "configurable":{
@@ -587,6 +594,7 @@ mod tests {
             &serde_json::json!({
                 "schema":1, "id":"test", "game":"emerald", "accepted_sha1":["0".repeat(40)],
                 "allow_modified_input":true,
+                "randomizer_layout":{"schema":1,"mode":"identity"},
                 "fingerprints":[{"offset":0,"expected_hex":"0000"}],
                 "writes":[{"offset":700,"expected_hex":"0000","replacement_hex":"0102"}]
             })

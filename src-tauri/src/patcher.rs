@@ -99,11 +99,30 @@ pub struct Recipe {
     configurable: Configurable,
     #[serde(default)]
     canonical_output_sha256: Option<String>,
+    #[serde(default)]
+    randomizer_layout: Option<RandomizerLayout>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RandomizerLayout {
+    schema: u8,
+    mode: String,
 }
 
 impl Recipe {
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    pub fn game(&self) -> &str {
+        &self.game
+    }
+
+    pub fn has_identity_randomizer_layout(&self) -> bool {
+        self.randomizer_layout
+            .as_ref()
+            .is_some_and(|layout| layout.schema == 1 && layout.mode == "identity")
     }
 }
 

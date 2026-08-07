@@ -47,6 +47,7 @@ class RandomizerIntegrationTests(unittest.TestCase):
                 "replacement_hex": "a0a1a2a3",
             }],
             "configurable": {},
+            "randomizer_layout": {"schema": 1, "mode": "identity"},
         }
         self.recipe.write_text(json.dumps(recipe), encoding="utf-8")
 
@@ -196,6 +197,23 @@ class RandomizerIntegrationTests(unittest.TestCase):
             )
             results.append((output.read_bytes(), combined_manifest.read_bytes()))
         self.assertEqual(results[0], results[1])
+
+    def test_composition_refuses_an_unadapted_relocated_layout(self) -> None:
+        self.write_recipe(offset=700)
+        recipe = json.loads(self.recipe.read_text(encoding="utf-8"))
+        recipe.pop("randomizer_layout")
+        self.recipe.write_text(json.dumps(recipe), encoding="utf-8")
+        self.write_manifest(self.clean_bytes)
+        with self.assertRaisesRegex(PatchError, "no verified FVX layout adapter"):
+            compose_randomized_rom(
+                clean_rom=self.clean,
+                randomized_rom=self.randomized,
+                manifest_path=self.manifest,
+                recipe_path=self.recipe,
+                output_rom=self.root / "unsafe.gbc",
+                output_manifest=self.root / "unsafe.json",
+            )
+        self.assertFalse((self.root / "unsafe.gbc").exists())
 
     def test_manifest_is_cryptographically_bound_to_both_roms(self) -> None:
         self.write_recipe()

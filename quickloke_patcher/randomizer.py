@@ -488,6 +488,11 @@ def compose_randomized_rom(
         manifest_path, clean_rom=clean_rom, randomized_rom=randomized_rom
     )
     recipe = load_recipe(recipe_path)
+    if recipe.get("randomizer_layout") != {"schema": 1, "mode": "identity"}:
+        raise PatchError(
+            f"{recipe['game']}: no verified FVX layout adapter is installed; "
+            "refusing an unsafe offset-based composition"
+        )
     clean = Path(clean_rom).read_bytes()
     randomized = Path(randomized_rom).read_bytes()
     effective_config = _effective_config(recipe, config_path)
