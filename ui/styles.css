@@ -176,6 +176,8 @@ summary { padding: 16px 2px 0; color: #cbd2e3; cursor: pointer; font-size: 0.85r
 summary span { float: right; color: #737f9e; }
 .caps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; max-height: 220px; margin-top: 14px; overflow: auto; }
 .cap-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #aeb7cc; font-size: 0.78rem; }
+.settings-string-row { display: grid; gap: 7px; margin-top: 12px; color: #aeb7cc; font-size: 0.78rem; }
+.settings-string-row textarea { box-sizing: border-box; width: 100%; resize: vertical; border: 1px solid #303a52; border-radius: 8px; padding: 10px; background: #101625; color: #eef2ff; font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .cap-input { width: 60px; padding: 6px 7px; border: 1px solid #303a54; border-radius: 7px; color: #eff2fa; background: #0d1322; }
 
 .action-bar { display: flex; align-items: center; gap: 20px; margin-top: 20px; padding: 17px 19px; border: 1px solid #293148; border-radius: 14px; background: #111728; }

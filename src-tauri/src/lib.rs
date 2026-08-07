@@ -2,6 +2,7 @@
 
 // Copyright (C) 2026 Quicklocke contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+mod fvx;
 mod patcher;
 mod randomizer;
 
@@ -11,6 +12,7 @@ use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::ipc::{InvokeBody, Request, Response};
+use tauri::{AppHandle, Manager};
 
 use patcher::{UserConfig, apply, inspect, parse_config, parse_recipe};
 use randomizer::{analyze, compose};
@@ -82,6 +84,12 @@ struct RandomizerCompositionEnvelope {
     manifest_json: String,
     clean_size: usize,
     config: Value,
+}
+
+#[derive(Debug, Deserialize)]
+struct FvxEnvelope {
+    settings: String,
+    seed: String,
 }
 
 fn raw_body<'a>(request: &'a Request<'a>) -> Result<&'a [u8], String> {
@@ -388,6 +396,48 @@ fn compose_randomized_rom(request: Request<'_>) -> Result<Response, String> {
     Ok(Response::new(response))
 }
 
+#[tauri::command]
+fn randomize_with_fvx(app: AppHandle, request: Request<'_>) -> Result<Response, String> {
+    let body = raw_body(&request)?;
+    if body.len() < 4 {
+        return Err("FVX request is truncated".into());
+    }
+    let metadata_size = u32::from_be_bytes(body[..4].try_into().unwrap()) as usize;
+    let metadata_end = 4_usize
+        .checked_add(metadata_size)
+        .ok_or_else(|| "FVX request metadata is too large".to_string())?;
+    if metadata_end > body.len() {
+        return Err("FVX request metadata is truncated".into());
+    }
+    let envelope: FvxEnvelope = serde_json::from_slice(&body[4..metadata_end])
+        .map_err(|error| format!("FVX request metadata is invalid: {error}"))?;
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|error| format!("cannot locate bundled engines: {error}"))?;
+    let output = fvx::randomize(
+        &resource_dir,
+        &body[metadata_end..],
+        &envelope.settings,
+        envelope
+            .seed
+            .parse::<i64>()
+            .map_err(|_| "FVX seed must be a signed 64-bit integer".to_string())?,
+    )?;
+    let metadata = serde_json::to_vec(&fvx::FvxResponseMetadata {
+        manifest_json: &output.manifest_json,
+        log: &output.log,
+    })
+    .map_err(|error| format!("cannot encode FVX result: {error}"))?;
+    let metadata_size = u32::try_from(metadata.len())
+        .map_err(|_| "FVX response metadata is too large".to_string())?;
+    let mut response = Vec::with_capacity(4 + metadata.len() + output.randomized.len());
+    response.extend_from_slice(&metadata_size.to_be_bytes());
+    response.extend_from_slice(&metadata);
+    response.extend_from_slice(&output.randomized);
+    Ok(Response::new(response))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -398,7 +448,8 @@ pub fn run() {
             inspect_rom,
             patch_rom,
             analyze_randomized_rom,
-            compose_randomized_rom
+            compose_randomized_rom,
+            randomize_with_fvx
         ])
         .run(tauri::generate_context!())
         .expect("error while running Quicklocke Patcher");

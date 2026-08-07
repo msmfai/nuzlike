@@ -55,6 +55,18 @@ interface PatchReport {
   debug: Record<string, boolean>;
 }
 
+interface FvxMetadata {
+  manifestJson: string;
+  log: string;
+}
+
+interface CombinedManifest {
+  schema: number;
+  pipeline: string;
+  seed: string;
+  final_sha256: string;
+}
+
 const app = document.querySelector<HTMLElement>("#app")!;
 
 let catalog: Catalog;
@@ -65,6 +77,9 @@ let inspection: Inspection | null = null;
 let config: UserConfig | null = null;
 let capSelection: LevelCapSelection = "medium";
 let selectedNormalization = "none";
+let randomizerEnabled = false;
+let randomizerSeed = "0";
+let randomizerSettings = "";
 
 const releaseRequirements: Record<string, string> = {
   red: "English USA/Europe",
@@ -135,7 +150,9 @@ function render(): void {
           </label>`)
         .join("")
     : "";
-  const ready = Boolean(selectedBytes && selectedGame?.recipeId && config);
+  const randomizerReady = !randomizerEnabled
+    || (randomizerSettings.trim().length > 0 && /^-?(0|[1-9][0-9]*)$/.test(randomizerSeed));
+  const ready = Boolean(selectedBytes && selectedGame?.recipeId && config && randomizerReady);
   const capLabel = titleCase(capSelection);
   const detected = selectedGame
     ? `<strong>${escapeHtml(selectedGame.name)}</strong><span>${inspection ? `${(inspection.size / 1048576).toFixed(2)} MiB · ${escapeHtml(releaseRequirements[selectedGame.id])}` : ""}</span>${selectedNormalization !== "none" ? "<span>512-byte copier header detected; output will be normalized.</span>" : ""}`
@@ -185,6 +202,24 @@ function render(): void {
 
         <section class="card options-card ${config ? "" : "disabled"}">
           <div class="step"><span>2</span><h2>Challenge options</h2></div>
+          <fieldset class="randomizer-fieldset" ${config ? "" : "disabled"}>
+            <legend>FVX randomizer <span>optional · deterministic</span></legend>
+            <label class="preset-option">
+              <input id="randomizer-enabled" type="checkbox" ${randomizerEnabled ? "checked" : ""} />
+              <span><strong>Randomize before applying Quicklocke</strong><small>Uses the pinned GPL Universal Pokémon Randomizer FVX engine locally.</small></span>
+            </label>
+            ${randomizerEnabled ? `
+              <label class="cap-row">
+                <span>Signed 64-bit seed</span>
+                <input id="randomizer-seed" type="text" inputmode="numeric" value="${escapeHtml(randomizerSeed)}" />
+              </label>
+              <label class="settings-string-row">
+                <span>Canonical FVX settings string</span>
+                <textarea id="randomizer-settings" rows="4" spellcheck="false" placeholder="Paste an FVX settings string for this game">${escapeHtml(randomizerSettings)}</textarea>
+              </label>
+              <p class="preset-note">The exact seed and settings are recorded in the combined manifest. Fixed Quicklocke caps are not recalculated from randomized trainers.</p>
+            ` : ""}
+          </fieldset>
           <p class="notice"><strong>Hardcore wipe rule:</strong> a full-party wipe permanently ends the run.</p>
           <fieldset ${config ? "" : "disabled"}>
             <legend>Capped EXP sharing</legend>
@@ -237,7 +272,7 @@ function render(): void {
 
       <section class="action-bar">
         <div id="status" data-kind="idle">${selectedGame ? "Configuration ready" : "Choose a supported game backup to begin"}</div>
-        <button id="patch-rom" class="primary" type="button" ${ready ? "" : "disabled"}>Patch and save copy</button>
+        <button id="patch-rom" class="primary" type="button" ${ready ? "" : "disabled"}>${randomizerEnabled ? "Randomize, patch, and save" : "Patch and save copy"}</button>
       </section>
 
       <footer>
@@ -248,6 +283,18 @@ function render(): void {
 
   document.querySelector("#choose-rom")?.addEventListener("click", chooseRom);
   document.querySelector("#patch-rom")?.addEventListener("click", patchAndSave);
+  document.querySelector<HTMLInputElement>("#randomizer-enabled")?.addEventListener("change", (event) => {
+    randomizerEnabled = (event.currentTarget as HTMLInputElement).checked;
+    render();
+  });
+  document.querySelector<HTMLInputElement>("#randomizer-seed")?.addEventListener("input", (event) => {
+    randomizerSeed = (event.currentTarget as HTMLInputElement).value.trim();
+    renderActionState();
+  });
+  document.querySelector<HTMLTextAreaElement>("#randomizer-settings")?.addEventListener("input", (event) => {
+    randomizerSettings = (event.currentTarget as HTMLTextAreaElement).value.trim();
+    renderActionState();
+  });
   document.querySelectorAll<HTMLInputElement>('input[name="cap-preset"]').forEach((input) => {
     input.addEventListener("change", () => selectCapPreset(input.value as LevelCapPreset));
   });
@@ -284,6 +331,21 @@ function render(): void {
   });
 }
 
+function renderActionState(): void {
+  const button = document.querySelector<HTMLButtonElement>("#patch-rom");
+  if (!button) return;
+  let seedValid = false;
+  try {
+    const seed = BigInt(randomizerSeed);
+    seedValid = /^-?(0|[1-9][0-9]*)$/.test(randomizerSeed)
+      && seed >= -(2n ** 63n) && seed <= (2n ** 63n) - 1n;
+  } catch {
+    seedValid = false;
+  }
+  button.disabled = !selectedBytes || !selectedGame?.recipeId || !config
+    || (randomizerEnabled && (!seedValid || !randomizerSettings));
+}
+
 async function chooseRom(): Promise<void> {
   try {
     const path = await open({
@@ -314,6 +376,7 @@ async function chooseRom(): Promise<void> {
     selectedBytes = bytes;
     inspection = details;
     selectedGame = game ?? null;
+    randomizerSettings = "";
     config = game ? structuredClone(game.defaultConfig) : null;
     capSelection = "medium";
     render();
@@ -338,6 +401,29 @@ function encodePatchRequest(recipeId: string, userConfig: UserConfig, rom: Uint8
   return envelope;
 }
 
+function encodeRawRequest(metadataValue: unknown, ...parts: Uint8Array[]): Uint8Array {
+  const metadata = new TextEncoder().encode(JSON.stringify(metadataValue));
+  const size = 4 + metadata.length + parts.reduce((total, part) => total + part.length, 0);
+  const envelope = new Uint8Array(size);
+  new DataView(envelope.buffer).setUint32(0, metadata.length, false);
+  envelope.set(metadata, 4);
+  let cursor = 4 + metadata.length;
+  for (const part of parts) {
+    envelope.set(part, cursor);
+    cursor += part.length;
+  }
+  return envelope;
+}
+
+function decodeRawResponse<T>(response: ArrayBuffer): { metadata: T; bytes: Uint8Array } {
+  const data = new Uint8Array(response);
+  if (data.length < 4) throw new Error("The engine returned a truncated response.");
+  const metadataSize = new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(0, false);
+  if (4 + metadataSize > data.length) throw new Error("The engine returned invalid metadata.");
+  const metadata = JSON.parse(new TextDecoder().decode(data.subarray(4, 4 + metadataSize))) as T;
+  return { metadata, bytes: data.subarray(4 + metadataSize) };
+}
+
 function decodePatchResponse(response: ArrayBuffer): { report: PatchReport; bytes: Uint8Array } {
   const data = new Uint8Array(response);
   if (data.length < 4) throw new Error("The patcher returned a truncated response.");
@@ -350,14 +436,48 @@ function decodePatchResponse(response: ArrayBuffer): { report: PatchReport; byte
 async function patchAndSave(): Promise<void> {
   if (!selectedGame?.recipeId || !selectedBytes || !config) return;
   try {
-    setStatus("Validating fingerprints and applying Quicklocke…", "working");
-    const envelope = encodePatchRequest(selectedGame.recipeId, config, selectedBytes);
-    const raw = await invoke<ArrayBuffer>("patch_rom", envelope);
-    const { report, bytes } = decodePatchResponse(raw);
+    let bytes: Uint8Array;
+    let outputHash: string;
+    let cheats = 0;
+    let combinedManifestText: string | null = null;
+    let randomizerLog: string | null = null;
+    if (randomizerEnabled) {
+      setStatus("Randomizing locally with FVX…", "working");
+      const clean = selectedNormalization === "removed-512-byte-copier-header"
+        ? selectedBytes.slice(512) : selectedBytes;
+      const randomizeRequest = encodeRawRequest(
+        { settings: randomizerSettings, seed: randomizerSeed },
+        clean,
+      );
+      const randomizedRaw = await invoke<ArrayBuffer>("randomize_with_fvx", randomizeRequest);
+      const randomized = decodeRawResponse<FvxMetadata>(randomizedRaw);
+      randomizerLog = randomized.metadata.log;
+      setStatus("Checking collisions and applying Quicklocke…", "working");
+      const compositionRequest = encodeRawRequest({
+        recipe_id: selectedGame.recipeId,
+        manifest_json: randomized.metadata.manifestJson,
+        clean_size: clean.length,
+        config,
+      }, clean, randomized.bytes);
+      const composedRaw = await invoke<ArrayBuffer>("compose_randomized_rom", compositionRequest);
+      const composed = decodeRawResponse<CombinedManifest>(composedRaw);
+      bytes = composed.bytes;
+      outputHash = composed.metadata.final_sha256;
+      combinedManifestText = JSON.stringify(composed.metadata, null, 2) + "\n";
+      cheats = Object.values(config.debug).filter(Boolean).length;
+    } else {
+      setStatus("Validating fingerprints and applying Quicklocke…", "working");
+      const envelope = encodePatchRequest(selectedGame.recipeId, config, selectedBytes);
+      const raw = await invoke<ArrayBuffer>("patch_rom", envelope);
+      const patched = decodePatchResponse(raw);
+      bytes = patched.bytes;
+      outputHash = patched.report.outputSha256;
+      cheats = Object.values(patched.report.debug).filter(Boolean).length;
+    }
     const extension = selectedGame.id === "red" || selectedGame.id === "blue" ? "gb" :
       ["yellow", "crystal"].includes(selectedGame.id) ? "gbc" : "gba";
     const destination = await save({
-      defaultPath: `quickloke-${selectedGame.id}.${extension}`,
+      defaultPath: `quicklocke-${selectedGame.id}.${extension}`,
       filters: [{ name: "Patched game backup", extensions: [extension] }],
     });
     if (!destination) {
@@ -365,9 +485,14 @@ async function patchAndSave(): Promise<void> {
       return;
     }
     await writeFile(destination, bytes);
-    const cheats = Object.values(report.debug).filter(Boolean).length;
-    const normalized = report.inputNormalization !== "none" ? " · copier header removed" : "";
-    setStatus(`Saved safely · ${report.outputSha256.slice(0, 12)}… · hardcore${normalized}${cheats ? ` · ${cheats} debug cheat${cheats === 1 ? "" : "s"}` : ""}`, "success");
+    if (combinedManifestText && randomizerLog !== null) {
+      await writeFile(`${destination}.quicklocke.json`, new TextEncoder().encode(combinedManifestText));
+      await writeFile(`${destination}.fvx.log`, new TextEncoder().encode(randomizerLog));
+    }
+    const normalized = selectedNormalization !== "none" ? " · copier header removed" : "";
+    const randomizedLabel = randomizerEnabled ? ` · FVX seed ${randomizerSeed}` : "";
+    const sidecars = combinedManifestText ? " · manifest + log saved" : "";
+    setStatus(`Saved safely · ${outputHash.slice(0, 12)}… · hardcore${randomizedLabel}${normalized}${sidecars}${cheats ? ` · ${cheats} debug cheat${cheats === 1 ? "" : "s"}` : ""}`, "success");
   } catch (error) {
     setStatus(String(error), "error");
   }
