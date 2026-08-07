@@ -277,6 +277,11 @@ def _repair_cartridge_checksum(output: bytearray, game: str) -> None:
     output[0x14E:0x150] = checksum.to_bytes(2, "big")
 
 
+def repair_cartridge_checksum(output: bytearray, game: str) -> None:
+    """Repair the platform checksum after composing independent transformations."""
+    _repair_cartridge_checksum(output, game)
+
+
 def _fingerprints_match(data: bytes, recipe: dict[str, Any]) -> bool:
     try:
         for index, fingerprint in enumerate(recipe["fingerprints"]):

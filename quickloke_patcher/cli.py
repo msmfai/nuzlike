@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .patcher import PatchError, apply_recipe, inspect_input
-from .randomizer import analyze_randomizer_compatibility
+from .randomizer import analyze_randomizer_compatibility, compose_randomized_rom
 
 
 def parser() -> argparse.ArgumentParser:
@@ -38,6 +38,18 @@ def parser() -> argparse.ArgumentParser:
     analyze.add_argument("--randomized", required=True, type=Path)
     analyze.add_argument("--manifest", required=True, type=Path)
     analyze.add_argument("--recipe", required=True, type=Path)
+
+    compose = commands.add_parser(
+        "compose-randomizer",
+        help="compose an FVX output with Quicklocke using the clean-ROM rebase policy",
+    )
+    compose.add_argument("--clean", required=True, type=Path)
+    compose.add_argument("--randomized", required=True, type=Path)
+    compose.add_argument("--manifest", required=True, type=Path)
+    compose.add_argument("--recipe", required=True, type=Path)
+    compose.add_argument("--output", required=True, type=Path)
+    compose.add_argument("--output-manifest", required=True, type=Path)
+    compose.add_argument("--config", type=Path)
     return root
 
 
@@ -53,12 +65,22 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif arguments.command == "inspect":
             result = inspect_input(arguments.input)
-        else:
+        elif arguments.command == "analyze-randomizer":
             result = analyze_randomizer_compatibility(
                 clean_rom=arguments.clean,
                 randomized_rom=arguments.randomized,
                 manifest_path=arguments.manifest,
                 recipe_path=arguments.recipe,
+            )
+        else:
+            result = compose_randomized_rom(
+                clean_rom=arguments.clean,
+                randomized_rom=arguments.randomized,
+                manifest_path=arguments.manifest,
+                recipe_path=arguments.recipe,
+                output_rom=arguments.output,
+                output_manifest=arguments.output_manifest,
+                config_path=arguments.config,
             )
     except PatchError as error:
         print(f"quickloke-patcher: {error}", file=sys.stderr)

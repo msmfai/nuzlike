@@ -13,6 +13,7 @@ from quickloke_patcher import (
     PatchError,
     analyze_randomizer_compatibility,
     changed_ranges,
+    compose_randomized_rom,
     load_recipe,
     recipe_write_ranges,
 )
@@ -143,11 +144,58 @@ class RandomizerIntegrationTests(unittest.TestCase):
         self.assertEqual(report["collisions"], [{
             "start": 702,
             "end": 704,
+            "resolution": "quicklocke-final",
             "message": (
                 "FVX and Quicklocke both change ROM bytes 0x2be-0x2bf; "
                 "this option combination needs an explicit composition rule"
             ),
         }])
+
+    def test_composition_preserves_fvx_only_bytes_and_quicklocke_wins_overlap(self) -> None:
+        self.write_recipe(offset=700)
+        after = bytearray(self.clean_bytes)
+        after[600:604] = b"FVX!"
+        after[702:706] = b"CLSH"
+        self.write_manifest(bytes(after))
+        output = self.root / "combined.gbc"
+        combined_manifest = self.root / "combined.json"
+        report = compose_randomized_rom(
+            clean_rom=self.clean,
+            randomized_rom=self.randomized,
+            manifest_path=self.manifest,
+            recipe_path=self.recipe,
+            output_rom=output,
+            output_manifest=combined_manifest,
+        )
+        composed = output.read_bytes()
+        self.assertEqual(composed[600:604], b"FVX!")
+        self.assertEqual(composed[700:704], b"\xa0\xa1\xa2\xa3")
+        self.assertEqual(composed[704:706], b"SH")
+        self.assertEqual(report["collisions"][0]["resolution"], "quicklocke-final")
+        self.assertEqual(report["final_sha256"], hashlib.sha256(composed).hexdigest())
+        self.assertEqual(
+            json.loads(combined_manifest.read_text(encoding="utf-8")), report
+        )
+
+    def test_composition_is_byte_and_manifest_deterministic(self) -> None:
+        self.write_recipe(offset=700)
+        after = bytearray(self.clean_bytes)
+        after[600] ^= 0xFF
+        self.write_manifest(bytes(after))
+        results: list[tuple[bytes, bytes]] = []
+        for suffix in ("a", "b"):
+            output = self.root / f"combined-{suffix}.gbc"
+            combined_manifest = self.root / f"combined-{suffix}.json"
+            compose_randomized_rom(
+                clean_rom=self.clean,
+                randomized_rom=self.randomized,
+                manifest_path=self.manifest,
+                recipe_path=self.recipe,
+                output_rom=output,
+                output_manifest=combined_manifest,
+            )
+            results.append((output.read_bytes(), combined_manifest.read_bytes()))
+        self.assertEqual(results[0], results[1])
 
     def test_manifest_is_cryptographically_bound_to_both_roms(self) -> None:
         self.write_recipe()
