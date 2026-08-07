@@ -13,7 +13,7 @@ use serde_json::Value;
 use tauri::ipc::{InvokeBody, Request, Response};
 
 use patcher::{UserConfig, apply, inspect, parse_config, parse_recipe};
-use randomizer::analyze;
+use randomizer::{analyze, compose};
 
 static RECIPES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../recipes");
 static CONFIGS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../configs");
@@ -74,6 +74,14 @@ struct RandomizerAnalysisEnvelope {
     recipe_id: String,
     manifest_json: String,
     clean_size: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct RandomizerCompositionEnvelope {
+    recipe_id: String,
+    manifest_json: String,
+    clean_size: usize,
+    config: Value,
 }
 
 fn raw_body<'a>(request: &'a Request<'a>) -> Result<&'a [u8], String> {
@@ -332,6 +340,54 @@ fn analyze_randomized_rom(request: Request<'_>) -> Result<Response, String> {
         .map_err(|error| format!("cannot encode randomizer analysis: {error}"))
 }
 
+#[tauri::command]
+fn compose_randomized_rom(request: Request<'_>) -> Result<Response, String> {
+    let body = raw_body(&request)?;
+    if body.len() < 4 {
+        return Err("randomizer composition request is truncated".into());
+    }
+    let metadata_size = u32::from_be_bytes(body[..4].try_into().unwrap()) as usize;
+    let metadata_end = 4_usize
+        .checked_add(metadata_size)
+        .ok_or_else(|| "randomizer composition metadata is too large".to_string())?;
+    if metadata_end > body.len() {
+        return Err("randomizer composition metadata is truncated".into());
+    }
+    let envelope: RandomizerCompositionEnvelope = serde_json::from_slice(&body[4..metadata_end])
+        .map_err(|error| format!("randomizer composition metadata is invalid: {error}"))?;
+    let rom_bytes = &body[metadata_end..];
+    if envelope.clean_size > rom_bytes.len() {
+        return Err("randomizer composition clean ROM is truncated".into());
+    }
+    let release = manifest()?
+        .releases
+        .into_iter()
+        .find(|release| release.id == envelope.recipe_id)
+        .ok_or_else(|| format!("unknown release recipe {:?}", envelope.recipe_id))?;
+    let recipe_json = embedded_recipe(&release.id, release.recipe.as_deref())?;
+    let recipe = parse_recipe(&recipe_json)?;
+    let config = parse_config(
+        &serde_json::to_string(&envelope.config)
+            .map_err(|error| format!("cannot encode patch config: {error}"))?,
+    )?;
+    let result = compose(
+        &rom_bytes[..envelope.clean_size],
+        &rom_bytes[envelope.clean_size..],
+        &envelope.manifest_json,
+        &recipe,
+        &config,
+    )?;
+    let report = serde_json::to_vec(&result.manifest)
+        .map_err(|error| format!("cannot encode combined manifest: {error}"))?;
+    let report_size =
+        u32::try_from(report.len()).map_err(|_| "combined manifest is too large".to_string())?;
+    let mut response = Vec::with_capacity(4 + report.len() + result.bytes.len());
+    response.extend_from_slice(&report_size.to_be_bytes());
+    response.extend_from_slice(&report);
+    response.extend_from_slice(&result.bytes);
+    Ok(Response::new(response))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -341,7 +397,8 @@ pub fn run() {
             get_catalog,
             inspect_rom,
             patch_rom,
-            analyze_randomized_rom
+            analyze_randomized_rom,
+            compose_randomized_rom
         ])
         .run(tauri::generate_context!())
         .expect("error while running Quicklocke Patcher");
