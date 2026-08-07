@@ -54,12 +54,13 @@ class RandomizerIntegrationTests(unittest.TestCase):
     def write_manifest(self, randomized: bytes, **changes: object) -> None:
         self.randomized.write_bytes(randomized)
         manifest = {
-            "schema": 2,
+            "schema": 3,
             "engine": "upr-fvx-quicklocke",
             "engine_version": "FVX 1.6.1",
             "upstream_base_revision": "d9700e2dd668f19e1392b8d5e8f370dd484245b3",
             "seed": "123456789",
             "settings": "427canonical-settings",
+            "input_layout": "vanilla",
             "semantic_settings": {
                 "starters_mode": "UNCHANGED",
                 "evolutions_mode": "UNCHANGED",
