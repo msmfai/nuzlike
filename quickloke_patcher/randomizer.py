@@ -5,12 +5,20 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import re
+import tempfile
 import zlib
 from pathlib import Path
 from typing import Any, Iterable
 
-from .patcher import PatchError, load_recipe
+from .patcher import (
+    PatchError,
+    apply_recipe,
+    load_config,
+    load_recipe,
+    repair_cartridge_checksum,
+)
 
 
 RANDOMIZER_MANIFEST_SCHEMA = 2
@@ -389,6 +397,7 @@ def analyze_randomizer_compatibility(
             {
                 "start": start,
                 "end": end,
+                "resolution": "quicklocke-final",
                 "message": (
                     f"FVX and Quicklocke both change ROM bytes 0x{start:x}-0x{end - 1:x}; "
                     "this option combination needs an explicit composition rule"
@@ -398,3 +407,130 @@ def analyze_randomizer_compatibility(
         ],
         "semantic_rules": semantic_rules,
     }
+
+
+def _effective_config(
+    recipe: dict[str, Any], config_path: str | Path | None
+) -> dict[str, Any]:
+    supplied = (
+        load_config(config_path, game=recipe["game"])
+        if config_path is not None
+        else {"level_caps": {}, "overflow_percent": None, "debug": {}}
+    )
+    configurable = recipe.get("configurable", {})
+    caps = {
+        entry["id"]: supplied["level_caps"].get(entry["id"], entry["default"])
+        for entry in configurable.get("level_caps", [])
+    }
+    overflow = configurable.get("overflow_percent")
+    overflow_percent = supplied["overflow_percent"]
+    if overflow_percent is None and overflow is not None:
+        overflow_percent = overflow["default"]
+    return {
+        "schema": 1,
+        "game": recipe["game"],
+        "level_caps": caps,
+        "overflow_percent": overflow_percent,
+        "debug": {
+            name: bool(supplied["debug"].get(name, False))
+            for name in (
+                "infinite_health",
+                "maximum_damage",
+                "disable_trainer_sight",
+            )
+        },
+    }
+
+
+def _atomic_write(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_name: str | None = None
+    try:
+        descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, path)
+        temporary_name = None
+    except OSError as error:
+        raise PatchError(f"cannot write output {path}: {error}") from error
+    finally:
+        if temporary_name is not None:
+            Path(temporary_name).unlink(missing_ok=True)
+
+
+def compose_randomized_rom(
+    *,
+    clean_rom: str | Path,
+    randomized_rom: str | Path,
+    manifest_path: str | Path,
+    recipe_path: str | Path,
+    output_rom: str | Path,
+    output_manifest: str | Path,
+    config_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Compose FVX then Quicklocke, with Quicklocke owning dual-written bytes."""
+    output_path = Path(output_rom)
+    combined_manifest_path = Path(output_manifest)
+    if output_path.exists() or combined_manifest_path.exists():
+        raise PatchError("refusing to overwrite an existing composed ROM or manifest")
+    if output_path.resolve() == combined_manifest_path.resolve():
+        raise PatchError("the composed ROM and manifest must use separate paths")
+
+    compatibility = analyze_randomizer_compatibility(
+        clean_rom=clean_rom,
+        randomized_rom=randomized_rom,
+        manifest_path=manifest_path,
+        recipe_path=recipe_path,
+    )
+    bridge_manifest = load_randomizer_manifest(
+        manifest_path, clean_rom=clean_rom, randomized_rom=randomized_rom
+    )
+    recipe = load_recipe(recipe_path)
+    clean = Path(clean_rom).read_bytes()
+    randomized = Path(randomized_rom).read_bytes()
+    effective_config = _effective_config(recipe, config_path)
+
+    with tempfile.TemporaryDirectory(prefix="quicklocke-compose-") as temporary:
+        quicklocke_path = Path(temporary) / f"quicklocke.{bridge_manifest['default_extension']}"
+        quicklocke_report = apply_recipe(
+            clean_rom, recipe_path, quicklocke_path, config_path=config_path
+        )
+        quicklocke_report.pop("output", None)
+        composed = bytearray(quicklocke_path.read_bytes())
+
+    for offset, (clean_byte, randomized_byte) in enumerate(zip(clean, randomized, strict=True)):
+        if randomized_byte != clean_byte and composed[offset] == clean_byte:
+            composed[offset] = randomized_byte
+    repair_cartridge_checksum(composed, recipe["game"])
+    final_sha256 = _sha256(bytes(composed))
+    quicklocke_report["output_sha256"] = final_sha256
+    combined = {
+        "schema": 1,
+        "pipeline": "upr-fvx-then-quicklocke",
+        "randomizer_engine": bridge_manifest["engine"],
+        "randomizer_engine_version": bridge_manifest["engine_version"],
+        "randomizer_upstream_revision": bridge_manifest["upstream_base_revision"],
+        "seed": bridge_manifest["seed"],
+        "randomizer_settings": bridge_manifest["settings"],
+        "input_sha256": bridge_manifest["input_sha256"],
+        "randomized_sha256": bridge_manifest["randomized_sha256"],
+        "randomizer_log_sha256": bridge_manifest["randomizer_log_sha256"],
+        "fvx_check_value": bridge_manifest["fvx_check_value"],
+        "quicklocke_config": effective_config,
+        "quicklocke_report": quicklocke_report,
+        "final_sha256": final_sha256,
+        "semantic_rules": compatibility["semantic_rules"],
+        "warnings": bridge_manifest["warnings"],
+        "collisions": compatibility["collisions"],
+    }
+    manifest_bytes = (json.dumps(combined, indent=2, sort_keys=True) + "\n").encode()
+    try:
+        _atomic_write(output_path, bytes(composed))
+        _atomic_write(combined_manifest_path, manifest_bytes)
+    except PatchError:
+        output_path.unlink(missing_ok=True)
+        combined_manifest_path.unlink(missing_ok=True)
+        raise
+    return combined
