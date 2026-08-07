@@ -428,6 +428,77 @@ pub fn parse_config(json: &str) -> Result<UserConfig, String> {
     Ok(config)
 }
 
+pub fn write_ranges(recipe: &Recipe) -> Result<Vec<(usize, usize)>, String> {
+    let mut ranges = Vec::new();
+    if let Some(patch) = &recipe.source_copy {
+        let mut cursor = 0_usize;
+        for (index, operation) in patch.operations.iter().enumerate() {
+            let label = format!("source_copy.operations[{index}]");
+            match (
+                operation.source_offset,
+                operation.length,
+                operation.xor_b64.as_deref(),
+                operation.xor_zlib_b64.as_deref(),
+            ) {
+                (Some(_), Some(length), None, None) => {
+                    cursor = cursor
+                        .checked_add(length)
+                        .ok_or_else(|| format!("{label} range overflows"))?
+                }
+                (None, None, Some(encoded), None) => {
+                    let length = BASE64
+                        .decode(encoded)
+                        .map_err(|error| format!("{label}.xor_b64 is invalid: {error}"))?
+                        .len();
+                    ranges.push((cursor, cursor + length));
+                    cursor += length;
+                }
+                (None, Some(length), None, Some(_)) => {
+                    ranges.push((cursor, cursor + length));
+                    cursor += length;
+                }
+                _ => return Err(format!("{label} has an unsupported operation shape")),
+            }
+        }
+    } else {
+        for (index, write) in recipe.writes.iter().enumerate() {
+            let length = parse_hex(
+                &write.replacement_hex,
+                &format!("writes[{index}].replacement_hex"),
+            )?
+            .len();
+            ranges.push((write.offset, write.offset + length));
+        }
+    }
+    for site in &recipe.configurable.level_caps {
+        ranges.push((site.offset, site.offset + 1));
+    }
+    if let Some(site) = &recipe.configurable.overflow_percent {
+        ranges.push((site.offset, site.offset + 1));
+    }
+    if let Some(site) = &recipe.configurable.debug_flags {
+        ranges.push((site.offset, site.offset + 1));
+    }
+    if matches!(recipe.game.as_str(), "red" | "blue" | "yellow" | "crystal") {
+        ranges.push((0x14e, 0x150));
+    }
+    ranges.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::new();
+    for (start, end) in ranges {
+        if start >= end {
+            continue;
+        }
+        if let Some(last) = merged.last_mut()
+            && start <= last.1
+        {
+            last.1 = last.1.max(end);
+        } else {
+            merged.push((start, end));
+        }
+    }
+    Ok(merged)
+}
+
 pub fn apply(
     recipe: &Recipe,
     config: Option<&UserConfig>,

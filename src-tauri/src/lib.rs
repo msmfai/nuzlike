@@ -1,6 +1,9 @@
+#![recursion_limit = "256"]
+
 // Copyright (C) 2026 Quicklocke contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 mod patcher;
+mod randomizer;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -10,6 +13,7 @@ use serde_json::Value;
 use tauri::ipc::{InvokeBody, Request, Response};
 
 use patcher::{UserConfig, apply, inspect, parse_config, parse_recipe};
+use randomizer::analyze;
 
 static RECIPES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../recipes");
 static CONFIGS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../configs");
@@ -63,6 +67,13 @@ struct PresetCatalog {
 struct PatchEnvelope {
     recipe_id: String,
     config: Value,
+}
+
+#[derive(Debug, Deserialize)]
+struct RandomizerAnalysisEnvelope {
+    recipe_id: String,
+    manifest_json: String,
+    clean_size: usize,
 }
 
 fn raw_body<'a>(request: &'a Request<'a>) -> Result<&'a [u8], String> {
@@ -284,6 +295,43 @@ fn patch_rom(request: Request<'_>) -> Result<Response, String> {
     Ok(Response::new(response))
 }
 
+#[tauri::command]
+fn analyze_randomized_rom(request: Request<'_>) -> Result<Response, String> {
+    let body = raw_body(&request)?;
+    if body.len() < 4 {
+        return Err("randomizer analysis request is truncated".into());
+    }
+    let metadata_size = u32::from_be_bytes(body[..4].try_into().unwrap()) as usize;
+    let metadata_end = 4_usize
+        .checked_add(metadata_size)
+        .ok_or_else(|| "randomizer analysis request metadata is too large".to_string())?;
+    if metadata_end > body.len() {
+        return Err("randomizer analysis request metadata is truncated".into());
+    }
+    let envelope: RandomizerAnalysisEnvelope = serde_json::from_slice(&body[4..metadata_end])
+        .map_err(|error| format!("randomizer analysis metadata is invalid: {error}"))?;
+    let rom_bytes = &body[metadata_end..];
+    if envelope.clean_size > rom_bytes.len() {
+        return Err("randomizer analysis clean ROM is truncated".into());
+    }
+    let release = manifest()?
+        .releases
+        .into_iter()
+        .find(|release| release.id == envelope.recipe_id)
+        .ok_or_else(|| format!("unknown release recipe {:?}", envelope.recipe_id))?;
+    let recipe_json = embedded_recipe(&release.id, release.recipe.as_deref())?;
+    let recipe = parse_recipe(&recipe_json)?;
+    let report = analyze(
+        &rom_bytes[..envelope.clean_size],
+        &rom_bytes[envelope.clean_size..],
+        &envelope.manifest_json,
+        &recipe,
+    )?;
+    serde_json::to_vec(&report)
+        .map(Response::new)
+        .map_err(|error| format!("cannot encode randomizer analysis: {error}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -292,7 +340,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_catalog,
             inspect_rom,
-            patch_rom
+            patch_rom,
+            analyze_randomized_rom
         ])
         .run(tauri::generate_context!())
         .expect("error while running Quicklocke Patcher");
