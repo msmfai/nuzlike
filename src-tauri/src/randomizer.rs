@@ -3,7 +3,9 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::patcher::{PatchReport, Recipe, UserConfig, apply, write_ranges};
+use crate::patcher::{
+    PatchReport, Recipe, UserConfig, apply, repair_checksum_for_recipe, write_ranges,
+};
 
 const ENGINE: &str = "upr-fvx-quicklocke";
 
@@ -75,6 +77,7 @@ pub struct Collision {
     pub start: usize,
     pub end: usize,
     pub message: String,
+    pub resolution: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -105,6 +108,7 @@ pub struct CombinedManifest {
     pub final_sha256: String,
     pub semantic_rules: Vec<CompositionRule>,
     pub warnings: Vec<String>,
+    pub collisions: Vec<Collision>,
 }
 
 #[derive(Debug)]
@@ -401,6 +405,7 @@ pub fn analyze(
             start,
             end,
             message: format!("FVX and Quicklocke both change bytes 0x{start:x}-0x{:x}; this needs an explicit composition rule", end - 1),
+            resolution: "quicklocke-final",
         })
         .collect::<Vec<_>>();
     Ok(CompatibilityReport {
@@ -421,22 +426,17 @@ pub fn compose(
     config: &UserConfig,
 ) -> Result<CombinedResult, String> {
     let compatibility = analyze(clean, randomized, manifest_json, recipe)?;
-    if !compatibility.compatible {
-        let first = &compatibility.collisions[0];
-        return Err(format!(
-            "cannot compose randomized ROM: {} unresolved byte collision(s); first is 0x{:x}-0x{:x}",
-            compatibility.collisions.len(),
-            first.start,
-            first.end - 1
-        ));
-    }
     let randomizer: RandomizerManifest = serde_json::from_str(manifest_json)
         .map_err(|error| format!("invalid randomizer manifest: {error}"))?;
-    let patched = apply(recipe, Some(config), randomized)?;
-    let final_sha256 = sha256(&patched.bytes);
-    if final_sha256 != patched.report.output_sha256 {
-        return Err("internal final-output hash disagreement".into());
+    let mut patched = apply(recipe, Some(config), clean)?;
+    for offset in 0..clean.len() {
+        if randomized[offset] != clean[offset] && patched.bytes[offset] == clean[offset] {
+            patched.bytes[offset] = randomized[offset];
+        }
     }
+    repair_checksum_for_recipe(&mut patched.bytes, recipe);
+    let final_sha256 = sha256(&patched.bytes);
+    patched.report.output_sha256 = final_sha256.clone();
     Ok(CombinedResult {
         bytes: patched.bytes,
         manifest: CombinedManifest {
@@ -456,6 +456,7 @@ pub fn compose(
             final_sha256,
             semantic_rules: compatibility.semantic_rules,
             warnings: randomizer.warnings,
+            collisions: compatibility.collisions,
         },
     })
 }
@@ -574,5 +575,36 @@ mod tests {
         assert_eq!(first.bytes[20], 18);
         assert_eq!(first.bytes[21], 60);
         assert_eq!(&first.bytes[700..702], &[1, 2]);
+    }
+
+    #[test]
+    fn composition_rebases_fvx_bytes_and_records_quicklocke_owned_collisions() {
+        let clean = vec![0_u8; 1024];
+        let mut randomized = clean.clone();
+        randomized[600] = 9;
+        randomized[701] = 9;
+        let recipe = parse_recipe(
+            &serde_json::json!({
+                "schema":1, "id":"test", "game":"emerald", "accepted_sha1":["0".repeat(40)],
+                "allow_modified_input":true,
+                "fingerprints":[{"offset":0,"expected_hex":"0000"}],
+                "writes":[{"offset":700,"expected_hex":"0000","replacement_hex":"0102"}]
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let config = crate::patcher::parse_config(r#"{"schema":1,"game":"emerald"}"#).unwrap();
+        let result = compose(
+            &clean,
+            &randomized,
+            &manifest(&clean, &randomized),
+            &recipe,
+            &config,
+        )
+        .unwrap();
+        assert_eq!(result.bytes[600], 9);
+        assert_eq!(&result.bytes[700..702], &[1, 2]);
+        assert_eq!(result.manifest.collisions.len(), 1);
+        assert_eq!(result.manifest.collisions[0].resolution, "quicklocke-final");
     }
 }
