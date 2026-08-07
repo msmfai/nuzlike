@@ -15,14 +15,15 @@ from pathlib import Path
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SOURCE_ROOT))
 
-from quickloke_patcher import PatchError, compose_randomized_rom, load_recipe
+from quickloke_patcher import PatchError, apply_recipe, load_recipe
 
 
 GAMES = ("red", "blue", "yellow", "crystal", "emerald", "firered", "leafgreen")
+INSTALLED_LAYOUTS = {"emerald", "firered", "leafgreen"}
 SETTINGS = {
     1: "321WRIEAQIZAIUAAACRAAKeBgMECQEAFAABCQAOAgAAAAAAAAho5ATkAQAICTIGBQMyAAIYElBva2Vtb24gWWVsbG93IChVKVXr5SHjwziK",
     2: "321WRIEATIZAIUAAACRAAKeBhsESQEACQAKCQAuAgAAAAAAABgI5ATkAQAICTIGBQMyAAIYF1Bva2Vtb24gQ3J5c3RhbCAoVSAxLjEpW+h5e+PDOIo=",
-    3: "427WRIEEjL8AP8AAgGRAALkBAARAAQJAQAJAAIJAC4S/wAAAAAEELgWBBYBgAgJ5AYEAuQABRgBAAFBAAAAAAAJDAABKAEAC0VtZXJhbGQgKFUpmAi9xAAAAAA=",
+    3: "427WRIEEjL8AP8AAgGRAALkBAARAAQJAQAJAAIJAC4S/wAAAAAAAAAWBBYBgAgJ5AYEAuQABRgBAAFBAAAAAAAJDAABKAEAC0VtZXJhbGQgKFUpS9JY7wAAAAA=",
 }
 
 
@@ -50,7 +51,7 @@ def extension(game: str) -> str:
 
 
 def run_fvx(
-    *, java: Path, jar: Path, rom: Path, output: Path, seed: str, settings: str
+    *, java: Path, jar: Path, rom: Path, output: Path, seed: str, settings: str, layout: str
 ) -> tuple[Path, Path]:
     manifest = output.with_suffix(".fvx.json")
     log = output.with_suffix(".fvx.log")
@@ -59,6 +60,7 @@ def run_fvx(
             str(java), "-jar", str(jar), "quicklocke",
             "-i", str(rom), "-o", str(output), "-S", settings, "-z", seed,
             "--manifest", str(manifest), "--log", str(log),
+            "--layout", layout,
         ],
         check=False,
         capture_output=True,
@@ -81,48 +83,51 @@ def verify_game(
 
     with tempfile.TemporaryDirectory(prefix=f"quicklocke-{game}-") as temporary:
         work = Path(temporary)
+        quicklocke = work / f"{game}-quicklocke.{extension(game)}"
+        apply_recipe(rom, recipe_path, quicklocke)
         randomized_runs: list[tuple[Path, Path, Path]] = []
-        combined_runs: list[tuple[Path, Path]] = []
         for run in ("a", "b"):
             randomized = work / f"{game}-{run}-randomized.{extension(game)}"
             manifest, log = run_fvx(
                 java=java,
                 jar=jar,
-                rom=rom,
+                rom=quicklocke,
                 output=randomized,
                 seed=seed,
                 settings=SETTINGS[generation(game)],
-            )
-            combined = work / f"{game}-{run}-quicklocke.{extension(game)}"
-            combined_manifest = work / f"{game}-{run}-quicklocke.json"
-            compose_randomized_rom(
-                clean_rom=rom,
-                randomized_rom=randomized,
-                manifest_path=manifest,
-                recipe_path=recipe_path,
-                output_rom=combined,
-                output_manifest=combined_manifest,
+                layout=f"quicklocke-{game}",
             )
             randomized_runs.append((randomized, manifest, log))
-            combined_runs.append((combined, combined_manifest))
 
         compared = [
             ("FVX ROM", randomized_runs[0][0], randomized_runs[1][0]),
             ("FVX manifest", randomized_runs[0][1], randomized_runs[1][1]),
             ("FVX log", randomized_runs[0][2], randomized_runs[1][2]),
-            ("combined ROM", combined_runs[0][0], combined_runs[1][0]),
-            ("combined manifest", combined_runs[0][1], combined_runs[1][1]),
         ]
         for label, first, second in compared:
             if first.read_bytes() != second.read_bytes():
                 raise PatchError(f"{game}: {label} is not deterministic")
-        combined_data = json.loads(combined_runs[0][1].read_text(encoding="utf-8"))
+        bridge_data = json.loads(randomized_runs[0][1].read_text(encoding="utf-8"))
+        if bridge_data["input_layout"] != f"quicklocke-{game}" or bridge_data["next_stage"] != "complete":
+            raise PatchError(f"{game}: FVX manifest does not describe a completed layout-aware pipeline")
+        quicklocke_bytes = quicklocke.read_bytes()
+        randomized_bytes = randomized_runs[0][0].read_bytes()
+        configurable = recipe.get("configurable", {})
+        protected_offsets = [entry["offset"] for entry in configurable.get("level_caps", [])]
+        protected_offsets.extend(
+            entry["offset"]
+            for name in ("overflow_percent", "debug_flags")
+            if (entry := configurable.get(name)) is not None
+        )
+        if any(quicklocke_bytes[offset] != randomized_bytes[offset] for offset in protected_offsets):
+            raise PatchError(f"{game}: FVX changed a Quicklocke configuration byte")
         return {
             "game": game,
             "clean_sha1": supplied_sha1,
             "fvx_sha256": digest(randomized_runs[0][0]),
-            "combined_sha256": digest(combined_runs[0][0]),
-            "collision_ranges": len(combined_data["collisions"]),
+            "quicklocke_sha256": digest(quicklocke),
+            "combined_sha256": digest(randomized_runs[0][0]),
+            "input_layout": bridge_data["input_layout"],
             "deterministic": True,
         }
 
@@ -132,6 +137,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--java", type=Path, default=Path("java"))
     result.add_argument("--fvx-jar", required=True, type=Path)
     result.add_argument("--seed", default="42")
+    result.add_argument("--require-all", action="store_true")
     result.add_argument(
         "--rom", action="append", required=True, type=parse_rom,
         metavar="GAME=PATH", help="repeat once for each supported clean owned ROM",
@@ -143,13 +149,14 @@ def main() -> int:
     arguments = parser().parse_args()
     root = SOURCE_ROOT
     supplied = dict(arguments.rom)
-    if set(supplied) != set(GAMES):
-        missing = sorted(set(GAMES) - set(supplied))
-        extra = sorted(set(supplied) - set(GAMES))
-        details = (["missing " + ", ".join(missing)] if missing else []) + (
-            ["extra " + ", ".join(extra)] if extra else []
-        )
-        parser().error("exactly one ROM per supported game is required (" + "; ".join(details) + ")")
+    requested = set(supplied)
+    unavailable = requested - INSTALLED_LAYOUTS
+    if unavailable:
+        parser().error("layout adapters are not installed for: " + ", ".join(sorted(unavailable)))
+    if arguments.require_all and requested != set(GAMES):
+        parser().error("--require-all needs one ROM for every supported game")
+    if not requested:
+        parser().error("at least one --rom is required")
     try:
         reports = [
             verify_game(
@@ -160,7 +167,7 @@ def main() -> int:
                 rom=supplied[game],
                 seed=arguments.seed,
             )
-            for game in GAMES
+            for game in GAMES if game in requested
         ]
     except (OSError, PatchError, subprocess.CalledProcessError) as error:
         print(f"randomizer matrix failed: {error}", file=sys.stderr)
