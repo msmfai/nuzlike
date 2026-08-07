@@ -8,7 +8,7 @@ configuration or use the command-line patcher.
 There is one file for every supported game:
 
 - `red.json`, `blue.json`, and `yellow.json`
-- `gold.json`, `silver.json`, and `crystal.json`
+- `crystal.json`
 - `emerald.json`
 - `firered.json` and `leafgreen.json`
 

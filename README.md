@@ -101,6 +101,12 @@ Pokémon there, but you cannot withdraw, move, rename, deposit, or give items to
 them. The reserved boxes are named from the beginning so they cannot be mistaken
 for ordinary storage.
 
+Losing a Pokémon also passes on part of its training: 75% of all EXP it earned
+above the current **MIN** is divided evenly among its eligible surviving party
+members. The inheritance cannot push anyone above **MAX**. Eggs, fainted
+teammates, the lost Pokémon itself, and teammates already at the cap receive
+nothing; any EXP that cannot fit is lost.
+
 If the Memorial has no room, Quicklocke will not delete or partially move a
 Pokémon. It stops and reports that storage must be freed.
 
@@ -129,15 +135,13 @@ The completed save remains playable under the original game's ordinary rules.
 
 Quicklocke identifies games by their contents, not their filenames. You need a
 backup of the exact English release shown below for the game you want to patch;
-you do not need all nine.
+you do not need all seven.
 
 | Game | Required release | Canonical SHA-1 |
 | --- | --- | --- |
 | Pokémon Red | USA/Europe, English | `ea9bcae617fdf159b045185467ae58b2e4a48b9a` |
 | Pokémon Blue | USA/Europe, English | `d7037c83e1ae5b39bde3c30787637ba1d4c48ce2` |
 | Pokémon Yellow | USA/Europe, English | `cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1` |
-| Pokémon Gold | USA/Europe, English | `d8b8a3600a465308c9953dfa04f0081c05bdcb94` |
-| Pokémon Silver | USA/Europe, English | `49b163f7e57702bc939d642a18f591de55d92dae` |
 | Pokémon Crystal | USA/Europe, English, version 1.0 | `f4cd194bdee0d04ca4eac29e09b8e4e9d818c133` |
 | Pokémon Emerald | USA/Europe, English | `f3ae088181bf583e55daf962a92bb46f4f1d07b7` |
 | Pokémon FireRed | USA, English, version 1.0—not 1.1 | `41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc` |
@@ -150,8 +154,9 @@ or protected-fingerprint checks. The patched output is written in standard
 headerless form. Arbitrary prefixes, unknown revisions, and near matches remain
 rejected rather than being patched speculatively.
 
-Ruby and Sapphire are not supported; use Emerald for the Hoenn version of the
-challenge. Every listed port is still undergoing emulator and owner playtesting.
+Gold and Silver are not supported; use Crystal for the Johto version of the
+challenge. Ruby and Sapphire are not supported; use Emerald for Hoenn. Every
+listed port is still undergoing emulator and owner playtesting.
 Emerald has received the most manual testing, but even it is not known to be
 completable without a blocker.
 
