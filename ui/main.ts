@@ -70,8 +70,6 @@ const releaseRequirements: Record<string, string> = {
   red: "English USA/Europe",
   blue: "English USA/Europe",
   yellow: "English USA/Europe",
-  gold: "English USA/Europe",
-  silver: "English USA/Europe",
   crystal: "English USA/Europe · version 1.0",
   emerald: "English USA/Europe",
   firered: "English USA · version 1.0 (not 1.1)",
@@ -243,7 +241,7 @@ function render(): void {
       </section>
 
       <footer>
-        <span>Supports Red, Blue, Yellow, Gold, Silver, Crystal, Emerald, FireRed, and LeafGreen.</span>
+        <span>Supports Red, Blue, Yellow, Crystal, Emerald, FireRed, and LeafGreen.</span>
         <span>GPL-3.0-or-later</span>
       </footer>
     </section>`;
@@ -357,7 +355,7 @@ async function patchAndSave(): Promise<void> {
     const raw = await invoke<ArrayBuffer>("patch_rom", envelope);
     const { report, bytes } = decodePatchResponse(raw);
     const extension = selectedGame.id === "red" || selectedGame.id === "blue" ? "gb" :
-      ["yellow", "gold", "silver", "crystal"].includes(selectedGame.id) ? "gbc" : "gba";
+      ["yellow", "crystal"].includes(selectedGame.id) ? "gbc" : "gba";
     const destination = await save({
       defaultPath: `quickloke-${selectedGame.id}.${extension}`,
       filters: [{ name: "Patched game backup", extensions: [extension] }],

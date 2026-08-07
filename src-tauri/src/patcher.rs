@@ -314,11 +314,7 @@ fn apply_source_copy(original: &[u8], patch: &SourceCopyPatch) -> Result<Vec<u8>
 }
 
 fn repair_cartridge_checksum(output: &mut [u8], game: &str) {
-    if !matches!(
-        game,
-        "red" | "blue" | "yellow" | "gold" | "silver" | "crystal"
-    ) || output.len() < 0x150
-    {
+    if !matches!(game, "red" | "blue" | "yellow" | "crystal") || output.len() < 0x150 {
         return;
     }
     let checksum = output[..0x14e]

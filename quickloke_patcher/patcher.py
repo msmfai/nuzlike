@@ -269,7 +269,7 @@ def _apply_source_copy(original: bytes, patch: dict[str, Any]) -> bytearray:
 
 
 def _repair_cartridge_checksum(output: bytearray, game: str) -> None:
-    if game not in {"red", "blue", "yellow", "gold", "silver", "crystal"}:
+    if game not in {"red", "blue", "yellow", "crystal"}:
         return
     if len(output) < 0x150:
         return

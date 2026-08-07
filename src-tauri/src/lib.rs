@@ -89,8 +89,6 @@ fn game_name(game: &str) -> String {
         "red" => "Pokémon Red",
         "blue" => "Pokémon Blue",
         "yellow" => "Pokémon Yellow",
-        "gold" => "Pokémon Gold",
-        "silver" => "Pokémon Silver",
         "crystal" => "Pokémon Crystal",
         "emerald" => "Pokémon Emerald",
         "firered" => "Pokémon FireRed",
@@ -226,12 +224,10 @@ fn get_catalog() -> Result<Catalog, String> {
         });
     }
     games.sort_by_key(|game| {
-        const ORDER: [&str; 9] = [
+        const ORDER: [&str; 7] = [
             "red",
             "blue",
             "yellow",
-            "gold",
-            "silver",
             "crystal",
             "emerald",
             "firered",
@@ -320,7 +316,7 @@ mod tests {
     #[test]
     fn embeds_complete_ordered_level_cap_presets() {
         let catalog = get_catalog().unwrap();
-        assert_eq!(catalog.games.len(), 9);
+        assert_eq!(catalog.games.len(), 7);
         assert_eq!(
             catalog
                 .games
@@ -331,8 +327,6 @@ mod tests {
                 "red",
                 "blue",
                 "yellow",
-                "gold",
-                "silver",
                 "crystal",
                 "emerald",
                 "firered",
