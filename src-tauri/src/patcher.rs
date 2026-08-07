@@ -324,6 +324,10 @@ fn repair_cartridge_checksum(output: &mut [u8], game: &str) {
     output[0x14e..0x150].copy_from_slice(&checksum.to_be_bytes());
 }
 
+pub fn repair_checksum_for_recipe(output: &mut [u8], recipe: &Recipe) {
+    repair_cartridge_checksum(output, &recipe.game);
+}
+
 pub fn parse_recipe(json: &str) -> Result<Recipe, String> {
     let recipe: Recipe =
         serde_json::from_str(json).map_err(|error| format!("invalid recipe: {error}"))?;
