@@ -210,18 +210,21 @@ debug build rather than using one for a real run.
 
 ## Randomizer compatibility
 
-Quicklocke is designed to preserve encounter, species, trainer, item, and move
-tables owned by compatible randomizers. Use this order:
+The patcher can run deterministic Universal Pokémon Randomizer FVX settings and
+then apply Quicklocke without copying bytes back into the wrong ROM layout. Use
+this order in the combined interface:
 
 1. make a backup of your supported game;
-2. randomize that backup using the compatibility profile named by the release;
-3. apply Quicklocke to the randomized result.
+2. configure Quicklocke and the randomizer in the same patcher;
+3. build one combined output and retain its manifest for reproduction.
 
 The configured boss caps do not inspect randomized trainer parties. Quicklocke
-changes only its declared code and configuration regions and accepts a modified
-input only when all invariant fingerprints still match. Compatibility is a
-design goal, not a promise that every randomizer and every option combination
-will work during pre-alpha.
+changes only its declared code and configuration regions. This pre-alpha has
+verified layout adapters for Pokémon Emerald, FireRed, and LeafGreen. Combined
+randomization is refused for Red, Blue, Yellow, and Crystal until their explicit
+adapters are complete; their ordinary non-randomized Quicklocke recipes remain
+available. Compatibility is a design goal, not a promise that every randomizer
+and every option combination will work during pre-alpha.
 
 ## Command-line use
 

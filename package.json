@@ -1,7 +1,7 @@
 {
   "name": "quickloke-patcher-app",
   "private": true,
-  "version": "0.1.0-pre-alpha.9",
+  "version": "0.1.0-pre-alpha.10",
   "type": "module",
   "scripts": {
     "tauri": "tauri",

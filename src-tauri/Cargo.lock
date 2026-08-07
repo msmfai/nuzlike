@@ -2296,7 +2296,7 @@ dependencies = [
 
 [[package]]
 name = "quickloke-patcher-app"
-version = "0.1.0-pre-alpha.9"
+version = "0.1.0-pre-alpha.10"
 dependencies = [
  "base64 0.22.1",
  "flate2",
