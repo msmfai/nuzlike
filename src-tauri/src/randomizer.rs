@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::patcher::{Recipe, write_ranges};
+use crate::patcher::{PatchReport, Recipe, UserConfig, apply, write_ranges};
 
 const ENGINE: &str = "upr-fvx-quicklocke";
 
@@ -85,6 +85,32 @@ pub struct CompatibilityReport {
     pub randomizer_changed_bytes: usize,
     pub collisions: Vec<Collision>,
     pub semantic_rules: Vec<CompositionRule>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CombinedManifest {
+    pub schema: u8,
+    pub pipeline: &'static str,
+    pub randomizer_engine: String,
+    pub randomizer_engine_version: String,
+    pub randomizer_upstream_revision: String,
+    pub seed: String,
+    pub randomizer_settings: String,
+    pub input_sha256: String,
+    pub randomized_sha256: String,
+    pub randomizer_log_sha256: String,
+    pub fvx_check_value: i32,
+    pub quicklocke_config: UserConfig,
+    pub quicklocke_report: PatchReport,
+    pub final_sha256: String,
+    pub semantic_rules: Vec<CompositionRule>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct CombinedResult {
+    pub bytes: Vec<u8>,
+    pub manifest: CombinedManifest,
 }
 
 fn sha256(bytes: &[u8]) -> String {
@@ -387,6 +413,53 @@ pub fn analyze(
     })
 }
 
+pub fn compose(
+    clean: &[u8],
+    randomized: &[u8],
+    manifest_json: &str,
+    recipe: &Recipe,
+    config: &UserConfig,
+) -> Result<CombinedResult, String> {
+    let compatibility = analyze(clean, randomized, manifest_json, recipe)?;
+    if !compatibility.compatible {
+        let first = &compatibility.collisions[0];
+        return Err(format!(
+            "cannot compose randomized ROM: {} unresolved byte collision(s); first is 0x{:x}-0x{:x}",
+            compatibility.collisions.len(),
+            first.start,
+            first.end - 1
+        ));
+    }
+    let randomizer: RandomizerManifest = serde_json::from_str(manifest_json)
+        .map_err(|error| format!("invalid randomizer manifest: {error}"))?;
+    let patched = apply(recipe, Some(config), randomized)?;
+    let final_sha256 = sha256(&patched.bytes);
+    if final_sha256 != patched.report.output_sha256 {
+        return Err("internal final-output hash disagreement".into());
+    }
+    Ok(CombinedResult {
+        bytes: patched.bytes,
+        manifest: CombinedManifest {
+            schema: 1,
+            pipeline: "upr-fvx-then-quicklocke",
+            randomizer_engine: randomizer.engine,
+            randomizer_engine_version: randomizer.engine_version,
+            randomizer_upstream_revision: randomizer.upstream_base_revision,
+            seed: randomizer.seed,
+            randomizer_settings: randomizer.settings,
+            input_sha256: randomizer.input_sha256,
+            randomized_sha256: randomizer.randomized_sha256,
+            randomizer_log_sha256: randomizer.randomizer_log_sha256,
+            fvx_check_value: randomizer.fvx_check_value,
+            quicklocke_config: config.clone(),
+            quicklocke_report: patched.report,
+            final_sha256,
+            semantic_rules: compatibility.semantic_rules,
+            warnings: randomizer.warnings,
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -464,5 +537,42 @@ mod tests {
                 .unwrap_err()
                 .contains("does not match")
         );
+    }
+
+    #[test]
+    fn composition_is_deterministic_and_records_both_configurations() {
+        let mut clean = vec![0_u8; 1024];
+        clean[20] = 20;
+        clean[21] = 75;
+        let mut randomized = clean.clone();
+        randomized[600] = 1;
+        let recipe = parse_recipe(
+            &serde_json::json!({
+                "schema":1, "id":"test", "game":"emerald", "accepted_sha1":["0".repeat(40)],
+                "allow_modified_input":true,
+                "fingerprints":[{"offset":0,"expected_hex":"0000"}],
+                "writes":[{"offset":700,"expected_hex":"0000","replacement_hex":"0102"}],
+                "configurable":{
+                    "level_caps":[{"id":"roxanne","offset":20,"default":20}],
+                    "overflow_percent":{"offset":21,"default":75,"minimum":0,"maximum":100}
+                }
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let config = crate::patcher::parse_config(
+            r#"{"schema":1,"game":"emerald","level_caps":{"roxanne":18},"overflow_percent":60}"#,
+        )
+        .unwrap();
+        let bridge_manifest = manifest(&clean, &randomized);
+        let first = compose(&clean, &randomized, &bridge_manifest, &recipe, &config).unwrap();
+        let second = compose(&clean, &randomized, &bridge_manifest, &recipe, &config).unwrap();
+        assert_eq!(first.bytes, second.bytes);
+        assert_eq!(first.manifest.final_sha256, second.manifest.final_sha256);
+        assert_eq!(first.manifest.randomizer_settings, "settings");
+        assert_eq!(first.manifest.quicklocke_config.level_caps["roxanne"], 18);
+        assert_eq!(first.bytes[20], 18);
+        assert_eq!(first.bytes[21], 60);
+        assert_eq!(&first.bytes[700..702], &[1, 2]);
     }
 }
