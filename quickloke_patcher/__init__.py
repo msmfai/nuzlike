@@ -8,6 +8,7 @@ from .randomizer import (
     changed_ranges,
     load_randomizer_manifest,
     recipe_write_ranges,
+    semantic_composition_rules,
 )
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "load_randomizer_manifest",
     "load_recipe",
     "recipe_write_ranges",
+    "semantic_composition_rules",
 ]
 __version__ = "0.1.0-pre-alpha.9"

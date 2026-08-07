@@ -13,12 +13,66 @@ from typing import Any, Iterable
 from .patcher import PatchError, load_recipe
 
 
-RANDOMIZER_MANIFEST_SCHEMA = 1
+RANDOMIZER_MANIFEST_SCHEMA = 2
 RANDOMIZER_ENGINE = "upr-fvx-quicklocke"
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _REVISION = re.compile(r"[0-9a-f]{40}")
 _SIGNED_64_MIN = -(2**63)
 _SIGNED_64_MAX = 2**63 - 1
+_SEMANTIC_FIELDS = {
+    "starters_mode",
+    "evolutions_mode",
+    "movesets_mode",
+    "trainers_mode",
+    "trainer_levels_modified",
+    "trainer_level_modifier",
+    "additional_boss_pokemon",
+    "additional_important_pokemon",
+    "additional_regular_pokemon",
+    "wild_randomized",
+    "wild_zone_mode",
+    "wild_type_mode",
+    "wild_evolution_mode",
+    "wild_levels_modified",
+    "wild_level_modifier",
+    "static_pokemon_mode",
+    "static_levels_modified",
+    "static_level_modifier",
+    "tm_moves_mode",
+    "tm_hm_compatibility_mode",
+    "full_hm_compatibility",
+    "keep_field_move_tms",
+    "field_items_mode",
+    "shop_items_mode",
+    "balance_shop_prices",
+    "cheap_rare_candies",
+    "misc_tweaks",
+}
+_SEMANTIC_ENUMS = {
+    "starters_mode": {"UNCHANGED", "CUSTOM", "COMPLETELY_RANDOM", "RANDOM_WITH_TWO_EVOLUTIONS", "RANDOM_BASIC"},
+    "evolutions_mode": {"UNCHANGED", "RANDOM", "RANDOM_EVERY_LEVEL"},
+    "movesets_mode": {"UNCHANGED", "RANDOM_PREFER_SAME_TYPE", "COMPLETELY_RANDOM", "METRONOME_ONLY"},
+    "trainers_mode": {"UNCHANGED", "RANDOM", "DISTRIBUTED", "MAINPLAYTHROUGH", "TYPE_THEMED", "TYPE_THEMED_ELITE4_GYMS", "KEEP_THEMED", "KEEP_THEME_OR_PRIMARY"},
+    "wild_zone_mode": {"NONE", "ENCOUNTER_SET", "MAP", "NAMED_LOCATION", "GAME"},
+    "wild_type_mode": {"NONE", "RANDOM_THEMES", "KEEP_PRIMARY"},
+    "wild_evolution_mode": {"NONE", "BASIC_ONLY", "KEEP_STAGE"},
+    "static_pokemon_mode": {"UNCHANGED", "RANDOM_MATCHING", "COMPLETELY_RANDOM", "SIMILAR_STRENGTH"},
+    "tm_moves_mode": {"UNCHANGED", "RANDOM"},
+    "tm_hm_compatibility_mode": {"UNCHANGED", "RANDOM_PREFER_TYPE", "COMPLETELY_RANDOM", "FULL"},
+    "field_items_mode": {"UNCHANGED", "SHUFFLE", "RANDOM", "RANDOM_EVEN"},
+    "shop_items_mode": {"UNCHANGED", "SHUFFLE", "RANDOM"},
+}
+_SEMANTIC_BOOLEANS = {
+    "trainer_levels_modified",
+    "wild_randomized",
+    "wild_levels_modified",
+    "static_levels_modified",
+    "full_hm_compatibility",
+    "keep_field_move_tms",
+    "balance_shop_prices",
+    "cheap_rare_candies",
+}
+_SEMANTIC_INTEGERS = _SEMANTIC_FIELDS - set(_SEMANTIC_ENUMS) - _SEMANTIC_BOOLEANS
 
 
 def _sha256(data: bytes) -> str:
@@ -38,7 +92,7 @@ def load_randomizer_manifest(
     except (OSError, json.JSONDecodeError) as error:
         raise PatchError(f"cannot read randomizer manifest {manifest_path}: {error}") from error
     if not isinstance(manifest, dict) or manifest.get("schema") != RANDOMIZER_MANIFEST_SCHEMA:
-        raise PatchError("randomizer manifest must be an object using schema 1")
+        raise PatchError("randomizer manifest must be an object using schema 2")
 
     required = {
         "schema",
@@ -47,6 +101,7 @@ def load_randomizer_manifest(
         "upstream_base_revision",
         "seed",
         "settings",
+        "semantic_settings",
         "rom_name",
         "rom_code",
         "generation",
@@ -106,6 +161,7 @@ def load_randomizer_manifest(
         isinstance(warning, str) for warning in manifest["warnings"]
     ):
         raise PatchError("randomizer manifest warnings must be a list of text")
+    _validate_semantic_settings(manifest["semantic_settings"])
 
     try:
         clean = Path(clean_rom).read_bytes()
@@ -122,6 +178,95 @@ def load_randomizer_manifest(
     if len(clean) != len(randomized):
         raise PatchError("FVX changed the ROM size; this Quicklocke recipe cannot be safely composed")
     return manifest
+
+
+def _validate_semantic_settings(value: object) -> None:
+    if not isinstance(value, dict):
+        raise PatchError("randomizer manifest semantic_settings must be an object")
+    fields = set(value)
+    if fields != _SEMANTIC_FIELDS:
+        missing = _SEMANTIC_FIELDS - fields
+        unknown = fields - _SEMANTIC_FIELDS
+        details = []
+        if missing:
+            details.append("missing " + ", ".join(sorted(missing)))
+        if unknown:
+            details.append("unsupported " + ", ".join(sorted(unknown)))
+        raise PatchError("randomizer semantic_settings fields are invalid: " + "; ".join(details))
+    for field, accepted in _SEMANTIC_ENUMS.items():
+        if value[field] not in accepted:
+            raise PatchError(f"randomizer semantic_settings {field} is unsupported")
+    for field in _SEMANTIC_BOOLEANS:
+        if not isinstance(value[field], bool):
+            raise PatchError(f"randomizer semantic_settings {field} must be boolean")
+    for field in _SEMANTIC_INTEGERS:
+        if not isinstance(value[field], int) or isinstance(value[field], bool):
+            raise PatchError(f"randomizer semantic_settings {field} must be an integer")
+    for enabled_field, modifier_field in (
+        ("trainer_levels_modified", "trainer_level_modifier"),
+        ("wild_levels_modified", "wild_level_modifier"),
+        ("static_levels_modified", "static_level_modifier"),
+    ):
+        if not value[enabled_field] and value[modifier_field] != 0:
+            raise PatchError(
+                f"randomizer semantic_settings {modifier_field} must be zero when disabled"
+            )
+
+
+def semantic_composition_rules(settings: dict[str, Any]) -> list[dict[str, str]]:
+    """Explain ownership for FVX settings that share a system with Quicklocke."""
+    rules = [
+        {
+            "system": "level_caps",
+            "owner": "quicklocke",
+            "message": "Player level caps remain the selected fixed Quicklocke values and are not recalculated from randomized trainers.",
+        },
+        {
+            "system": "encounters",
+            "owner": "quicklocke-runtime",
+            "message": "FVX supplies encounter species; Quicklocke still enforces capture-item gating, one encounter per area, and duplicate-species exclusion.",
+        },
+        {
+            "system": "hm_progression",
+            "owner": "quicklocke-runtime",
+            "message": "FVX may change TM/HM compatibility, while Quicklocke preserves each HM's direct bag action and story authorization checks.",
+        },
+        {
+            "system": "shops",
+            "owner": "quicklocke-final",
+            "message": "FVX randomizes ordinary shop contents first; Quicklocke then guarantees Gym Passes and discounted EV items in every Poké Mart.",
+        },
+        {
+            "system": "memorial_and_champion",
+            "owner": "quicklocke-runtime",
+            "message": "Memorial handling and Champion shutdown remain Quicklocke rules regardless of randomized species or trainers.",
+        },
+    ]
+    if settings["trainer_levels_modified"]:
+        rules.append({
+            "system": "randomized_trainer_levels",
+            "owner": "fvx",
+            "message": (
+                f"FVX applies its {settings['trainer_level_modifier']}% trainer-level modifier; "
+                "the player cap remains fixed, so this can intentionally make a gym easier or harder."
+            ),
+        })
+    if settings["wild_levels_modified"]:
+        rules.append({
+            "system": "randomized_wild_levels",
+            "owner": "fvx-then-quicklocke",
+            "message": (
+                f"FVX applies its {settings['wild_level_modifier']}% wild-level modifier, then "
+                "Quicklocke applies only its pre-first-badge minimum catch-level floor."
+            ),
+        })
+    if settings["field_items_mode"] != "UNCHANGED":
+        rules.append({
+            "system": "capture_item_gate",
+            "owner": "fvx-then-quicklocke-runtime",
+            "message": "Randomized field items may change when a catching item is obtained; encounters unlock only after the player actually owns one.",
+        })
+    return rules
 
 
 def changed_ranges(before: bytes, after: bytes) -> list[tuple[int, int]]:
@@ -226,6 +371,7 @@ def analyze_randomizer_compatibility(
     randomizer_ranges = changed_ranges(clean, randomized)
     quicklocke_ranges = recipe_write_ranges(recipe)
     collisions = _intersections(randomizer_ranges, quicklocke_ranges)
+    semantic_rules = semantic_composition_rules(manifest["semantic_settings"])
     return {
         "compatible": not collisions,
         "game": recipe["game"],
@@ -250,4 +396,5 @@ def analyze_randomizer_compatibility(
             }
             for start, end in collisions
         ],
+        "semantic_rules": semantic_rules,
     }
