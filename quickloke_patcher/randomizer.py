@@ -21,7 +21,7 @@ from .patcher import (
 )
 
 
-RANDOMIZER_MANIFEST_SCHEMA = 2
+RANDOMIZER_MANIFEST_SCHEMA = 3
 RANDOMIZER_ENGINE = "upr-fvx-quicklocke"
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _REVISION = re.compile(r"[0-9a-f]{40}")
@@ -100,7 +100,7 @@ def load_randomizer_manifest(
     except (OSError, json.JSONDecodeError) as error:
         raise PatchError(f"cannot read randomizer manifest {manifest_path}: {error}") from error
     if not isinstance(manifest, dict) or manifest.get("schema") != RANDOMIZER_MANIFEST_SCHEMA:
-        raise PatchError("randomizer manifest must be an object using schema 2")
+        raise PatchError("randomizer manifest must be an object using schema 3")
 
     required = {
         "schema",
@@ -109,6 +109,7 @@ def load_randomizer_manifest(
         "upstream_base_revision",
         "seed",
         "settings",
+        "input_layout",
         "semantic_settings",
         "rom_name",
         "rom_code",
@@ -154,6 +155,8 @@ def load_randomizer_manifest(
             raise PatchError(f"randomizer manifest {field} must be non-empty text")
     if manifest["generation"] not in (1, 2, 3):
         raise PatchError("randomizer manifest generation must be 1, 2, or 3")
+    if manifest["input_layout"] != "vanilla":
+        raise PatchError("this composition path requires an FVX vanilla input layout")
     for field in ("input_size", "randomized_size"):
         if not isinstance(manifest[field], int) or isinstance(manifest[field], bool) or manifest[field] < 0:
             raise PatchError(f"randomizer manifest {field} must be a non-negative integer")

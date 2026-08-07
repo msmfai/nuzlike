@@ -50,6 +50,7 @@ pub struct RandomizerManifest {
     upstream_base_revision: String,
     seed: String,
     settings: String,
+    input_layout: String,
     semantic_settings: SemanticSettings,
     rom_name: String,
     rom_code: String,
@@ -140,8 +141,8 @@ fn validate_manifest(
     clean: &[u8],
     randomized: &[u8],
 ) -> Result<(), String> {
-    if manifest.schema != 2 {
-        return Err("randomizer manifest must use schema 2".into());
+    if manifest.schema != 3 {
+        return Err("randomizer manifest must use schema 3".into());
     }
     if manifest.engine != ENGINE || !manifest.engine_version.starts_with("FVX ") {
         return Err("randomizer manifest must identify the Quicklocke FVX engine".into());
@@ -179,6 +180,9 @@ fn validate_manifest(
     }
     if manifest.next_stage != "quicklocke" {
         return Err("randomizer manifest is not intended for the Quicklocke stage".into());
+    }
+    if manifest.input_layout != "vanilla" {
+        return Err("this composition path requires an FVX vanilla input layout".into());
     }
     if clean.len() != manifest.input_size
         || sha256(clean) != manifest.input_sha256.to_ascii_lowercase()
@@ -474,9 +478,10 @@ mod tests {
 
     fn manifest(clean: &[u8], randomized: &[u8]) -> String {
         serde_json::json!({
-            "schema": 2, "engine": ENGINE, "engine_version": "FVX test",
+            "schema": 3, "engine": ENGINE, "engine_version": "FVX test",
             "upstream_base_revision": "d9700e2dd668f19e1392b8d5e8f370dd484245b3",
-            "seed": "42", "settings": "settings", "rom_name": "Test", "rom_code": "T",
+            "seed": "42", "settings": "settings", "input_layout": "vanilla",
+            "rom_name": "Test", "rom_code": "T",
             "generation": 2, "default_extension": "gbc", "input_size": clean.len(),
             "input_sha256": sha256(clean), "randomized_size": randomized.len(),
             "randomized_sha256": sha256(randomized), "randomizer_log_sha256": sha256(b"log"),
