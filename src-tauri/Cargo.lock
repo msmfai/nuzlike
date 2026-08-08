@@ -1844,7 +1844,7 @@ dependencies = [
 
 [[package]]
 name = "nuzlike-patcher-app"
-version = "0.1.0-pre-alpha.12"
+version = "0.1.0-pre-alpha.13"
 dependencies = [
  "base64 0.22.1",
  "flate2",
