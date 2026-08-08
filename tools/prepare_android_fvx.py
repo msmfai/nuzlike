@@ -33,6 +33,21 @@ def main() -> int:
     libs = APP / "libs"
     libs.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(args.jar, libs / "UPR-FVX.jar")
+
+    # Tauri validates every resource declared by the shared desktop/mobile
+    # configuration before compiling the Android library. Android executes FVX
+    # through ART from app/libs, but these paths must still exist for validation.
+    resources = ROOT / "src-tauri" / "resources"
+    engine_resource = resources / "engines" / "UPR-FVX.jar"
+    engine_resource.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(args.jar, engine_resource)
+    runtime = resources / "runtime"
+    runtime.mkdir(parents=True, exist_ok=True)
+    (runtime / ".android-placeholder").write_text(
+        "Android uses ART; no desktop Java runtime is required.\n",
+        encoding="utf-8",
+    )
+
     destination = APP / "src" / "main" / "java" / "org" / "quickloke" / "patcher" / "QuicklockeFvx.kt"
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(ROOT / "src-tauri" / "android" / "QuicklockeFvx.kt", destination)
