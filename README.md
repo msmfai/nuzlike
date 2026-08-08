@@ -1,9 +1,9 @@
 > [!WARNING]
 > Hey there! I'm taking a top down approach to development here where I started with something vibe coded and then clean things up. In pre alpha the documentation is purely AI generated so I can focus on the programming, it will be hand written at final release. The AI-generated documentation is overly verbose by design at this point so all the features of the mod are visible to you.
 
-# [Pre-Alpha] Quicklocke
+# [Pre-Alpha] NuzLike
 
-Quicklocke is a Pokémon challenge mode about building a team with scarce
+NuzLike is a Pokémon challenge mode about building a team with scarce
 encounters and strict level caps—without spending hours grinding replacements.
 It modifies your own copy of a Generation I, II, or III game and enforces the
 rules in the game itself.
@@ -11,7 +11,7 @@ rules in the game itself.
 The basic rhythm is simple: catch one Pokémon in each area, build a team from
 what you find, stay under the next boss cap, and earn reliable team training by
 beating Gyms. A fainted Pokémon is retired to the Memorial. A full-party wipe
-ends the run. Defeat the Champion and every Quicklocke restriction is lifted.
+ends the run. Defeat the Champion and every NuzLike restriction is lifted.
 
 > **This is a very early pre-alpha. It will almost certainly softlock or break
 > somewhere.** Do not use a valuable save. Keep your original game backup
@@ -37,7 +37,7 @@ encounter. Before the first Badge, wild Pokémon below level 5 are raised to
 level 5 so an unlucky early encounter is still useful. Wild levels return to
 their normal or randomized values after the first Badge.
 
-While Quicklocke is active, each wild encounter table is filtered to species
+While NuzLike is active, each wild encounter table is filtered to species
 not yet marked as caught in your Pokédex. The game preserves the table's native
 weights while choosing among those uncaught species. Releasing, trading, or
 retiring a Pokémon does not make its species available again. If every species
@@ -108,7 +108,7 @@ members. The inheritance cannot push anyone above **MAX**. Eggs, fainted
 teammates, the lost Pokémon itself, and teammates already at the cap receive
 nothing; any EXP that cannot fit is lost.
 
-If the Memorial has no room, Quicklocke will not delete or partially move a
+If the Memorial has no room, NuzLike will not delete or partially move a
 Pokémon. It stops and reports that storage must be freed.
 
 A full-party wipe invalidates the run save. If you want a less punishing
@@ -123,18 +123,18 @@ to you.
 
 ### The challenge ends at the Championship
 
-After the first Champion victory, the game clearly announces that Quicklocke is
+After the first Champion victory, the game clearly announces that NuzLike is
 over and bypasses the hack's runtime features. Normal wild encounters and wild
-EXP return; there is no Quicklocke level cap at all (rather than a cap of 100);
-faint retirement is disabled; the profile stops showing the Quicklocke range;
-and the Memorial becomes ordinary accessible PC storage. Quicklocke's special
+EXP return; there is no NuzLike level cap at all (rather than a cap of 100);
+faint retirement is disabled; the profile stops showing the NuzLike range;
+and the Memorial becomes ordinary accessible PC storage. NuzLike's special
 vitamin stock and prices and HM Bag actions also switch off. Gym Passes remain
 stocked and usable as the deliberate exception.
 The completed save remains playable under the original game's ordinary rules.
 
 ## Supported games
 
-Quicklocke identifies games by their contents, not their filenames. You need a
+NuzLike identifies games by their contents, not their filenames. You need a
 backup of the exact English release shown below for the game you want to patch;
 you do not need all seven.
 
@@ -161,9 +161,9 @@ listed port is still undergoing emulator and owner playtesting.
 Emerald has received the most manual testing, but even it is not known to be
 completable without a blocker.
 
-## Make a Quicklocke game
+## Make a NuzLike game
 
-You need your own legally obtained backup of a supported game. Quicklocke does
+You need your own legally obtained backup of a supported game. NuzLike does
 not include or download Pokémon games, ROMs, saves, artwork, or extracted game
 data.
 
@@ -206,20 +206,20 @@ The patcher provides three independent test switches, all disabled by default:
 - disabled trainer sight, while still allowing battles when you speak to them.
 
 These options are for rapidly testing a pre-alpha port, not part of the
-Quicklocke rules. They are baked into the patched copy, so create a separate
+NuzLike rules. They are baked into the patched copy, so create a separate
 debug build rather than using one for a real run.
 
 ## Randomizer compatibility
 
 The patcher can run deterministic Universal Pokémon Randomizer FVX settings and
-then apply Quicklocke without copying bytes back into the wrong ROM layout. Use
+then apply NuzLike without copying bytes back into the wrong ROM layout. Use
 this order in the combined interface:
 
 1. make a backup of your supported game;
-2. configure Quicklocke and the randomizer in the same patcher;
+2. configure NuzLike and the randomizer in the same patcher;
 3. build one combined output and retain its manifest for reproduction.
 
-The configured boss caps do not inspect randomized trainer parties. Quicklocke
+The configured boss caps do not inspect randomized trainer parties. NuzLike
 changes only its declared code and configuration regions. All seven supported
 games have explicit composition adapters: Red, Blue, Yellow, Crystal, Emerald,
 FireRed, and LeafGreen. Compatibility is a design goal, not a promise that every
@@ -227,17 +227,17 @@ randomizer option combination will work during pre-alpha.
 
 ## Command-line use
 
-The graphical app is the normal way to use Quicklocke. A Python 3.11 command-
+The graphical app is the normal way to use NuzLike. A Python 3.11 command-
 line patcher is also included for automation:
 
 ```sh
-python3 -m quickloke_patcher inspect --input /path/to/your-backup.gba
+python3 -m nuzlike_patcher inspect --input /path/to/your-backup.gba
 
-python3 -m quickloke_patcher apply \
+python3 -m nuzlike_patcher apply \
   --input /path/to/your-backup.gba \
   --recipe recipes/emerald.json \
   --config configs/emerald.json \
-  --output /path/to/quicklocke-emerald.gba
+  --output /path/to/nuzlike-emerald.gba
 ```
 
 Copy the matching file in [`configs/`](configs/) before editing it. Invalid
@@ -269,7 +269,7 @@ This public repository deliberately contains no ROM images, replacement games,
 saves, decompilation source, extracted assets, symbols, or maps. Public recipes
 describe guarded transformations that users apply to their own backups.
 
-Quicklocke is an unofficial fan project and is not affiliated with or endorsed
+NuzLike is an unofficial fan project and is not affiliated with or endorsed
 by Nintendo, Game Freak, Creatures, or The Pokémon Company.
 
 Developers and release reviewers can find build instructions in

@@ -1,6 +1,6 @@
 #![recursion_limit = "256"]
 
-// Copyright (C) 2026 Quicklocke contributors
+// Copyright (C) 2026 NuzLike contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 mod fvx;
 mod patcher;
@@ -452,7 +452,7 @@ pub fn run() {
             randomize_with_fvx
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Quicklocke Patcher");
+        .expect("error while running NuzLike Patcher");
 }
 
 #[cfg(test)]

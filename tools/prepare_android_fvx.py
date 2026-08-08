@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Install the pinned FVX engine into Tauri's generated Android project."""
 from __future__ import annotations
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "src-tauri" / "gen" / "android" / "app"
 DEPENDENCY = '    implementation(files("libs/UPR-FVX.jar"))\n'
 KEEP_RULES = """\
--keep class org.quickloke.patcher.QuicklockeFvx { *; }
+-keep class org.nuzlike.patcher.NuzLikeFvx { *; }
 -dontwarn java.awt.**
 -dontwarn javax.naming.**
 -dontwarn javax.print.**
@@ -48,9 +48,9 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    destination = APP / "src" / "main" / "java" / "org" / "quickloke" / "patcher" / "QuicklockeFvx.kt"
+    destination = APP / "src" / "main" / "java" / "org" / "nuzlike" / "patcher" / "NuzLikeFvx.kt"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(ROOT / "src-tauri" / "android" / "QuicklockeFvx.kt", destination)
+    shutil.copyfile(ROOT / "src-tauri" / "android" / "NuzLikeFvx.kt", destination)
 
     text = gradle.read_text(encoding="utf-8")
     if DEPENDENCY.strip() not in text:

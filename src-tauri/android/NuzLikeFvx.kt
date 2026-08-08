@@ -1,9 +1,9 @@
-// Copyright (C) 2026 Quicklocke contributors
+// Copyright (C) 2026 NuzLike contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
-package org.quickloke.patcher
+package org.nuzlike.patcher
 
 import android.content.Context
-import com.uprfvx.random.quicklocke.QuicklockeBridge
+import com.uprfvx.random.nuzlike.NuzLikeBridge
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintStream
@@ -12,11 +12,11 @@ import java.nio.ByteOrder
 import java.util.UUID
 
 /** Android/ART adapter for the same FVX bridge used by desktop packages. */
-object QuicklockeFvx {
+object NuzLikeFvx {
     @JvmStatic
     @Synchronized
     fun randomize(context: Context, input: ByteArray, settings: String, seed: Long): ByteArray {
-        val workspace = File(context.cacheDir, "quicklocke-fvx-${UUID.randomUUID()}")
+        val workspace = File(context.cacheDir, "nuzlike-fvx-${UUID.randomUUID()}")
         return try {
             check(workspace.mkdir()) { "cannot create the private FVX workspace" }
             val source = File(workspace, "clean.rom")
@@ -29,7 +29,7 @@ object QuicklockeFvx {
             val previousError = System.err
             val status = try {
                 System.setErr(PrintStream(errors, true, Charsets.UTF_8.name()))
-                QuicklockeBridge.invoke(arrayOf(
+                NuzLikeBridge.invoke(arrayOf(
                     "-i", source.absolutePath,
                     "-o", randomized.absolutePath,
                     "-S", settings,

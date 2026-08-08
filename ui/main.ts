@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Quicklocke contributors
+// Copyright (C) 2026 NuzLike contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
@@ -170,13 +170,13 @@ function render(): void {
         <div class="mark" aria-hidden="true"><span></span></div>
         <div>
           <p class="eyebrow">GENERATION I–III</p>
-          <h1>Quicklocke Patcher</h1>
+          <h1>NuzLike Patcher</h1>
         </div>
         <span class="privacy">ROM-free · offline</span>
       </header>
 
       <section class="intro">
-        <p>Choose your own backup of an exact supported English release. The patcher verifies its content, applies the matching Quicklocke recipe, and writes a separate file.</p>
+        <p>Choose your own backup of an exact supported English release. The patcher verifies its content, applies the matching NuzLike recipe, and writes a separate file.</p>
       </section>
 
       <div class="workspace">
@@ -206,7 +206,7 @@ function render(): void {
             <legend>FVX randomizer <span>optional · deterministic</span></legend>
             <label class="preset-option">
               <input id="randomizer-enabled" type="checkbox" ${randomizerEnabled ? "checked" : ""} />
-              <span><strong>Randomize before applying Quicklocke</strong><small>Uses the pinned GPL Universal Pokémon Randomizer FVX engine locally.</small></span>
+              <span><strong>Randomize before applying NuzLike</strong><small>Uses the pinned GPL Universal Pokémon Randomizer FVX engine locally.</small></span>
             </label>
             ${randomizerEnabled ? `
               <label class="cap-row">
@@ -217,7 +217,7 @@ function render(): void {
                 <span>Canonical FVX settings string</span>
                 <textarea id="randomizer-settings" rows="4" spellcheck="false" placeholder="Paste an FVX settings string for this game">${escapeHtml(randomizerSettings)}</textarea>
               </label>
-              <p class="preset-note">The exact seed and settings are recorded in the combined manifest. Fixed Quicklocke caps are not recalculated from randomized trainers.</p>
+              <p class="preset-note">The exact seed and settings are recorded in the combined manifest. Fixed NuzLike caps are not recalculated from randomized trainers.</p>
             ` : ""}
           </fieldset>
           <p class="notice"><strong>Hardcore wipe rule:</strong> a full-party wipe permanently ends the run.</p>
@@ -452,7 +452,7 @@ async function patchAndSave(): Promise<void> {
       const randomizedRaw = await invoke<ArrayBuffer>("randomize_with_fvx", randomizeRequest);
       const randomized = decodeRawResponse<FvxMetadata>(randomizedRaw);
       randomizerLog = randomized.metadata.log;
-      setStatus("Checking collisions and applying Quicklocke…", "working");
+      setStatus("Checking collisions and applying NuzLike…", "working");
       const compositionRequest = encodeRawRequest({
         recipe_id: selectedGame.recipeId,
         manifest_json: randomized.metadata.manifestJson,
@@ -466,7 +466,7 @@ async function patchAndSave(): Promise<void> {
       combinedManifestText = JSON.stringify(composed.metadata, null, 2) + "\n";
       cheats = Object.values(config.debug).filter(Boolean).length;
     } else {
-      setStatus("Validating fingerprints and applying Quicklocke…", "working");
+      setStatus("Validating fingerprints and applying NuzLike…", "working");
       const envelope = encodePatchRequest(selectedGame.recipeId, config, selectedBytes);
       const raw = await invoke<ArrayBuffer>("patch_rom", envelope);
       const patched = decodePatchResponse(raw);
@@ -477,7 +477,7 @@ async function patchAndSave(): Promise<void> {
     const extension = selectedGame.id === "red" || selectedGame.id === "blue" ? "gb" :
       ["yellow", "crystal"].includes(selectedGame.id) ? "gbc" : "gba";
     const destination = await save({
-      defaultPath: `quicklocke-${selectedGame.id}.${extension}`,
+      defaultPath: `nuzlike-${selectedGame.id}.${extension}`,
       filters: [{ name: "Patched game backup", extensions: [extension] }],
     });
     if (!destination) {
@@ -486,7 +486,7 @@ async function patchAndSave(): Promise<void> {
     }
     await writeFile(destination, bytes);
     if (combinedManifestText && randomizerLog !== null) {
-      await writeFile(`${destination}.quicklocke.json`, new TextEncoder().encode(combinedManifestText));
+      await writeFile(`${destination}.nuzlike.json`, new TextEncoder().encode(combinedManifestText));
       await writeFile(`${destination}.fvx.log`, new TextEncoder().encode(randomizerLog));
     }
     const normalized = selectedNormalization !== "none" ? " · copier header removed" : "";
@@ -499,7 +499,7 @@ async function patchAndSave(): Promise<void> {
 }
 
 async function start(): Promise<void> {
-  app.innerHTML = '<section class="boot">Loading Quicklocke…</section>';
+  app.innerHTML = '<section class="boot">Loading NuzLike…</section>';
   try {
     catalog = await invoke<Catalog>("get_catalog");
     render();

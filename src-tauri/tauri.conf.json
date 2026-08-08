@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Quicklocke Patcher",
+  "productName": "NuzLike Patcher",
   "version": "0.1.0-pre-alpha.12",
-  "identifier": "org.quickloke.patcher",
+  "identifier": "org.nuzlike.patcher",
   "build": {
     "beforeDevCommand": "npm run ui:dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "[Pre-Alpha] Quicklocke Patcher",
+        "title": "[Pre-Alpha] NuzLike Patcher",
         "width": 1040,
         "height": 760,
         "minWidth": 700,
@@ -28,9 +28,9 @@
     "active": true,
     "targets": "all",
     "category": "Utility",
-    "shortDescription": "Apply Quicklocke to an owned Pokémon game backup",
-    "longDescription": "A ROM-free patcher for all supported Generation I through III Quicklocke ports.",
-    "copyright": "Copyright © 2026 Quicklocke contributors",
+    "shortDescription": "Apply NuzLike to an owned Pokémon game backup",
+    "longDescription": "A ROM-free patcher for all supported Generation I through III NuzLike ports.",
+    "copyright": "Copyright © 2026 NuzLike contributors",
     "license": "GPL-3.0-or-later",
     "resources": {
       "resources/engines/UPR-FVX.jar": "engines/UPR-FVX.jar",

@@ -1,6 +1,6 @@
-<!-- Copyright (C) 2026 Quicklocke contributors
+<!-- Copyright (C) 2026 NuzLike contributors
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Quicklocke emblem">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="NuzLike emblem">
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#1c2748"/>

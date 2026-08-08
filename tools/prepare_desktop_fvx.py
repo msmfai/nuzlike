@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Bundle the pinned FVX engine and a minimal Java 17 runtime for desktop."""
 from __future__ import annotations

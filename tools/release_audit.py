@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ FORBIDDEN_TEXT = (
     "BEGIN PRIVATE" + " KEY",
 )
 ALLOWED_ROOTS = {
-    ".github", "branding", "configs", "quickloke_patcher", "recipes",
+    ".github", "branding", "configs", "nuzlike_patcher", "recipes",
     "src-tauri", "tests", "tools", "ui", ".gitignore", "BUILDING.md",
     "LICENSE", "README.md", "VERSION", "index.html", "package-lock.json",
     "package.json", "pyproject.toml", "tsconfig.json", "vite.config.ts",
@@ -38,7 +38,7 @@ GPL_MARKERS = (
     "Version 3, 29 June 2007",
     "Everyone is permitted to copy and distribute verbatim copies",
 )
-LICENSED_SOURCE_ROOTS = {"quickloke_patcher", "src-tauri", "tests", "tools", "ui"}
+LICENSED_SOURCE_ROOTS = {"nuzlike_patcher", "src-tauri", "tests", "tools", "ui"}
 LICENSED_SOURCE_SUFFIXES = {".css", ".py", ".rs", ".ts"}
 MAX_RECIPE_FILE_BYTES = 8_000_000
 MAX_TRANSFORMED_BYTES = 2 * 1024 * 1024

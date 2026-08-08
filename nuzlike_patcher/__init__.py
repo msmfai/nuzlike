@@ -1,6 +1,6 @@
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Public, ROM-free Quicklocke patcher."""
+"""Public, ROM-free NuzLike patcher."""
 
 from .patcher import PatchError, apply_recipe, inspect_input, load_recipe, repair_cartridge_checksum
 from .randomizer import (

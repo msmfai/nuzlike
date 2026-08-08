@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "quickloke-patcher"
+name = "nuzlike-patcher"
 version = "0.1.0a1"
-description = "ROM-free structured patcher for Quicklocke"
+description = "ROM-free structured patcher for NuzLike"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
@@ -15,7 +15,7 @@ classifiers = [
 ]
 
 [project.scripts]
-quickloke-patcher = "quickloke_patcher.cli:main"
+nuzlike-patcher = "nuzlike_patcher.cli:main"
 
 [tool.setuptools]
-packages = ["quickloke_patcher"]
+packages = ["nuzlike_patcher"]

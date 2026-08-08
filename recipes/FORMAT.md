@@ -47,7 +47,7 @@ verify every original write region before changing it.
 
 ## User configuration
 
-`quickloke-patcher apply --config CONFIG.json` accepts a UTF-8 schema-`1` object:
+`nuzlike-patcher apply --config CONFIG.json` accepts a UTF-8 schema-`1` object:
 
 ```json
 {
