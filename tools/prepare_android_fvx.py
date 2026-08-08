@@ -42,6 +42,8 @@ def main() -> int:
     engine_resource.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(args.jar, engine_resource)
     runtime = resources / "runtime"
+    if runtime.exists():
+        shutil.rmtree(runtime)
     runtime.mkdir(parents=True, exist_ok=True)
     (runtime / ".android-placeholder").write_text(
         "Android uses ART; no desktop Java runtime is required.\n",
