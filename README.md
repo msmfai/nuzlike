@@ -26,7 +26,7 @@ catching Pokémon. From then on, each named location gives you one random wild
 battle. Different floors, grass, caves, water, fishing spots, and other random
 encounter methods sharing that location name all count as the same area.
 
-Your one encounter plays legendary battle music. The next successful encounter
+Your one encounter plays the game's Gym Leader battle music. The next successful encounter
 roll in that area opens a battle with an empty opponent slot, displays
 “But no one came…”, and returns you to the overworld. That scene is shown only
 once in the entire playthrough so it does not become repetitive. After it has
@@ -111,9 +111,9 @@ nothing; any EXP that cannot fit is lost.
 If the Memorial has no room, Quicklocke will not delete or partially move a
 Pokémon. It stops and reports that storage must be freed.
 
-A full-party wipe invalidates the run save. Forgiving checkpoint mode was
-removed because these cartridges cannot safely maintain the exact second save
-needed for a true rollback. For now, Quicklocke is hardcore only.
+A full-party wipe invalidates the run save. If you want a less punishing
+experience, you can make an emulator savestate after beating each Gym Leader
+and return to it manually after a wipe.
 
 ### Cheaper training items
 
@@ -220,12 +220,10 @@ this order in the combined interface:
 3. build one combined output and retain its manifest for reproduction.
 
 The configured boss caps do not inspect randomized trainer parties. Quicklocke
-changes only its declared code and configuration regions. This pre-alpha has
-verified layout adapters for Pokémon Emerald, FireRed, and LeafGreen. Combined
-randomization is refused for Red, Blue, Yellow, and Crystal until their explicit
-adapters are complete; their ordinary non-randomized Quicklocke recipes remain
-available. Compatibility is a design goal, not a promise that every randomizer
-and every option combination will work during pre-alpha.
+changes only its declared code and configuration regions. All seven supported
+games have explicit composition adapters: Red, Blue, Yellow, Crystal, Emerald,
+FireRed, and LeafGreen. Compatibility is a design goal, not a promise that every
+randomizer option combination will work during pre-alpha.
 
 ## Command-line use
 

@@ -118,11 +118,78 @@ pub fn randomize(
 #[cfg(target_os = "android")]
 pub fn randomize(
     _resource_dir: &Path,
-    _clean_rom: &[u8],
-    _settings: &str,
-    _seed: i64,
+    clean_rom: &[u8],
+    settings: &str,
+    seed: i64,
 ) -> Result<FvxOutput, String> {
-    Err("the FVX Android in-process adapter is not installed in this build".into())
+    use jni::objects::{JByteArray, JObject, JValue};
+    use jni::JavaVM;
+
+    if settings.is_empty() {
+        return Err("FVX settings string must not be empty".into());
+    }
+    let android = ndk_context::android_context();
+    let vm = unsafe { JavaVM::from_raw(android.vm().cast()) }
+        .map_err(|error| format!("cannot access Android's Java VM: {error}"))?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|error| format!("cannot attach FVX to Android's Java VM: {error}"))?;
+    let input = env
+        .byte_array_from_slice(clean_rom)
+        .map_err(|error| format!("cannot pass the ROM to Android FVX: {error}"))?;
+    let settings = env
+        .new_string(settings)
+        .map_err(|error| format!("cannot pass settings to Android FVX: {error}"))?;
+    let context = unsafe { JObject::from_raw(android.context().cast()) };
+    let input_object = JObject::from(input);
+    let settings_object = JObject::from(settings);
+    let result = env
+        .call_static_method(
+            "org/quickloke/patcher/QuicklockeFvx",
+            "randomize",
+            "(Landroid/content/Context;[BLjava/lang/String;J)[B",
+            &[
+                JValue::Object(&context),
+                JValue::Object(&input_object),
+                JValue::Object(&settings_object),
+                JValue::Long(seed),
+            ],
+        )
+        .and_then(|value| value.l())
+        .map_err(|error| format!("Android FVX bridge failed: {error}"))?;
+    let result = JByteArray::from(result);
+    let payload = env
+        .convert_byte_array(&result)
+        .map_err(|error| format!("cannot read Android FVX output: {error}"))?;
+    if payload.is_empty() {
+        return Err("Android FVX returned an empty response".into());
+    }
+    if payload[0] != 0 {
+        return Err(String::from_utf8_lossy(&payload[1..]).into_owned());
+    }
+    if payload.len() < 9 {
+        return Err("Android FVX returned a truncated response".into());
+    }
+    let manifest_size = u32::from_be_bytes(payload[1..5].try_into().unwrap()) as usize;
+    let log_size = u32::from_be_bytes(payload[5..9].try_into().unwrap()) as usize;
+    let manifest_end = 9usize
+        .checked_add(manifest_size)
+        .ok_or_else(|| "Android FVX manifest is too large".to_string())?;
+    let log_end = manifest_end
+        .checked_add(log_size)
+        .ok_or_else(|| "Android FVX log is too large".to_string())?;
+    if log_end > payload.len() {
+        return Err("Android FVX returned invalid response lengths".into());
+    }
+    let manifest_json = String::from_utf8(payload[9..manifest_end].to_vec())
+        .map_err(|_| "Android FVX manifest is not UTF-8".to_string())?;
+    let log = String::from_utf8(payload[manifest_end..log_end].to_vec())
+        .map_err(|_| "Android FVX log is not UTF-8".to_string())?;
+    Ok(FvxOutput {
+        randomized: payload[log_end..].to_vec(),
+        manifest_json,
+        log,
+    })
 }
 
 #[cfg(test)]

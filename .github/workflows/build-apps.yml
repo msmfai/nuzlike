@@ -8,9 +8,31 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  fvx-engine:
+    name: Build pinned randomizer engine
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: msmfai/universal-pokemon-randomizer-fvx
+          ref: d824655b5b6e303d000b7463daa49d6a279b1117
+          path: .fvx-source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Build and test FVX bridge
+        run: .fvx-source/gradlew -p .fvx-source :random:jar :random:quicklockeBridgeTest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fvx-engine
+          path: .fvx-source/random/build/libs/UPR-FVX.jar
+          if-no-files-found: error
+
   desktop:
     name: ${{ matrix.name }}
     strategy:
@@ -43,12 +65,21 @@ jobs:
             bundles: deb,appimage
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    needs: fvx-engine
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: fvx-engine
+          path: .engine
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -58,12 +89,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
       - run: npm ci
+      - name: Bundle FVX and minimal Java runtime
+        run: python tools/prepare_desktop_fvx.py --jar .engine/UPR-FVX.jar
       - name: Build native package
         run: npm run build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Package Unix bundle
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          tar -czf "release-assets/quickloke-${{ matrix.target }}.tar.gz" -C "src-tauri/target/${{ matrix.target }}/release/bundle" .
+      - name: Package Windows bundle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          Compress-Archive -Path "src-tauri/target/${{ matrix.target }}/release/bundle/*" -DestinationPath "release-assets/quickloke-${{ matrix.target }}.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: quickloke-${{ matrix.target }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/
+          path: release-assets/*
           if-no-files-found: error
 
   android:
@@ -82,8 +127,13 @@ jobs:
             artifact: quickloke-android-x86_64
     runs-on: ubuntu-22.04
     timeout-minutes: 60
+    needs: fvx-engine
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: fvx-engine
+          path: .engine
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -103,10 +153,36 @@ jobs:
       - run: npm ci
       - name: Initialize Android project
         run: npm run android:init -- --ci
+      - name: Install FVX Android bridge
+        run: python tools/prepare_android_fvx.py --jar .engine/UPR-FVX.jar
       - name: Build split APKs
         run: npm run android:build -- --target ${{ matrix.tauri_target }} --apk --split-per-abi --ci
+      - name: Name release APK
+        run: |
+          mkdir -p release-assets
+          cp src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk "release-assets/${{ matrix.artifact }}.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk
+          path: release-assets/*.apk
           if-no-files-found: error
+
+  release:
+    name: Publish tagged binaries
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [desktop, android]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: quickloke-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create pre-alpha release if needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          gh release view "$TAG" --repo "$REPOSITORY" || gh release create "$TAG" --repo "$REPOSITORY" --prerelease --title "[Pre-Alpha] Quicklocke $TAG" --notes "Pre-alpha build. This release is incomplete and may softlock; keep backups of your saves. Includes the combined FVX randomizer and Quicklocke patcher for every supported game."
+          gh release upload "$TAG" release-assets/* --repo "$REPOSITORY" --clobber

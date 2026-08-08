@@ -119,9 +119,7 @@ three debug switches. The rest of the Quicklocke rules—including one encounter
 per area, no wild EXP, Gym Pass behavior, Memorial retirement, and the
 Championship unlock—remain fixed.
 
-A full-party wipe always ends the run. Forgiving checkpoint mode is not present
-in this pre-alpha because the games cannot safely store the exact second save
-needed for a true rollback.
+A full-party wipe always ends the run.
 
 These configuration files contain settings only. They contain no ROM data,
 game source, extracted assets, keys, saves, or replacement games.
