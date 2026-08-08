@@ -37,12 +37,13 @@ encounter. Before the first Badge, wild Pokémon below level 5 are raised to
 level 5 so an unlucky early encounter is still useful. Wild levels return to
 their normal or randomized values after the first Badge.
 
-While Quicklocke is active, a random encounter is also suppressed if its
-species is already marked as caught in your Pokédex. Releasing, trading, or
-retiring that Pokémon does not make the species available again. A rejected
-duplicate does not consume the area's one encounter, so you may keep searching
-for a species you have not previously owned. This rule is removed after you
-become Champion.
+While Quicklocke is active, each wild encounter table is filtered to species
+not yet marked as caught in your Pokédex. The game preserves the table's native
+weights while choosing among those uncaught species. Releasing, trading, or
+retiring a Pokémon does not make its species available again. If every species
+in the current table has already been caught, the normal unfiltered table is
+used instead, preventing an exhausted table from blocking encounters forever.
+This rule is removed after you become Champion.
 
 ### No wild EXP
 
