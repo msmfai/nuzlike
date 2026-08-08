@@ -129,10 +129,11 @@ Your first Champion victory is the finish line. The game announces that the
 NuzLike run is complete and turns off its challenge restrictions: wild
 encounters and wild EXP return, the level cap disappears entirely, fainted
 Pokémon stop going to the Memorial, and its boxes become ordinary storage. The
-profile range, special vitamin economy, and HM Bag shortcuts also disappear.
+profile range also disappears.
 
-Gym Passes remain available as a postgame convenience. The rest of the
-completed save continues under the original game's normal rules.
+Gym Passes, cheap vitamins, and HM Bag shortcuts remain available as postgame
+conveniences. The rest of the completed save continues under the original
+game's normal rules.
 
 ## Supported games
 
