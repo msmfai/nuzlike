@@ -79,7 +79,9 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          # Temurin 17 is unavailable on GitHub's Windows ARM runner. FVX is
+          # compiled for Java 17 and runs unchanged on this Java 21 runtime.
+          java-version: 21
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
