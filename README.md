@@ -3,134 +3,137 @@
 
 # [Pre-Alpha] NuzLike
 
-NuzLike is a Pokémon challenge mode about building a team with scarce
-encounters and strict level caps—without spending hours grinding replacements.
-It modifies your own copy of a Generation I, II, or III game and enforces the
-rules in the game itself.
+NuzLike turns a classic Pokémon adventure into a strategic roguelike—with no
+need to grind.
 
-The basic rhythm is simple: catch one Pokémon in each area, build a team from
-what you find, stay under the next boss cap, and earn reliable team training by
-beating Gyms. A fainted Pokémon is retired to the Memorial. A full-party wipe
-ends the run. Defeat the Champion and every NuzLike restriction is lifted.
+You still travel through the original world, battle its Trainers, earn its
+Badges, and build a team of Pokémon. What changes is the shape of the journey.
+Each area offers one unpredictable recruit. Trainer experience is a finite
+resource. The next major boss sets your level ceiling. Every faint is a lasting
+loss, and a full-party wipe ends the run.
+
+The result is a campaign about adapting to what you find rather than farming
+until your numbers are high enough. A mediocre encounter may become the answer
+to the next Gym. A safe Trainer battle may be worth saving for a future team
+member. Losing a veteran hurts, but some of its experience passes to the
+survivors. Beating a Gym gives you a reliable way to bring the whole party up to
+speed, so rebuilding is a strategic problem—not a demand to spend hours in tall
+grass.
+
+NuzLike enforces that structure inside your own copy of Pokémon Red, Blue,
+Yellow, Crystal, Emerald, FireRed, or LeafGreen. You do not need a separate
+rules document beside you while playing, and you cannot accidentally overlevel
+past a configured boss cap.
 
 > **This is a very early pre-alpha. It will almost certainly softlock or break
 > somewhere.** Do not use a valuable save. Keep your original game backup
 > untouched and begin with a disposable save you are prepared to lose.
 
-## What changes?
+## The shape of a run
 
-### One encounter per area
+### Explore, then commit
 
-Random encounters remain disabled until you first obtain an item capable of
-catching Pokémon. From then on, each named location gives you one random wild
-battle. Different floors, grass, caves, water, fishing spots, and other random
-encounter methods sharing that location name all count as the same area.
+Random encounters remain off until you obtain your first item capable of
+catching a Pokémon. After that, each named area contains exactly one random wild
+battle. Its different floors, grass, caves, water, fishing spots, and other
+random-encounter methods all share that opportunity.
 
-Your one encounter plays the game's Gym Leader battle music. The next successful encounter
-roll in that area opens a battle with an empty opponent slot, displays
-“But no one came…”, and returns you to the overworld. That scene is shown only
-once in the entire playthrough so it does not become repetitive. After it has
-been seen, exhausted areas suppress later encounters silently.
+That one encounter uses the game's Gym Leader battle music: this is the area's
+one chance to change your run. NuzLike prefers species your Pokédex does not yet
+mark as caught while preserving the encounter table's original weights. If you
+have caught every species available there, it falls back to the full table so
+the area never becomes unusable.
 
-Gift Pokémon and scripted static encounters do not consume the area's random
-encounter. Before the first Badge, wild Pokémon below level 5 are raised to
-level 5 so an unlucky early encounter is still useful. Wild levels return to
-their normal or randomized values after the first Badge.
+The next successful encounter roll in a spent area opens the normal battle
+screen with an empty opponent and says “But no one came…” before returning to
+the overworld. You see that scene only once per playthrough; exhausted areas
+then stay quiet. Gifts and scripted static Pokémon do not spend a random area's
+encounter. Before your first Badge, encounters below level 5 are raised to level
+5 so the opening cannot leave you with unusably weak options.
 
-While NuzLike is active, each wild encounter table is filtered to species
-not yet marked as caught in your Pokédex. The game preserves the table's native
-weights while choosing among those uncaught species. Releasing, trading, or
-retiring a Pokémon does not make its species available again. If every species
-in the current table has already been caught, the normal unfiltered table is
-used instead, preventing an exhausted table from blocking encounters forever.
-This rule is removed after you become Champion.
+### Win with a finite amount of training
 
-### No wild EXP
+Wild Pokémon award no experience during the run. Your growth comes primarily
+from the Trainers already placed throughout the campaign, turning experience
+into something you route and budget instead of something you farm.
 
-Wild battles give no experience while the challenge is active. Trainer battles
-are the main source of experience, making the available EXP part of the team-
-building puzzle instead of an invitation to grind.
+The next Gym Leader, Elite Four member, or Champion also sets a hard level cap.
+Battle experience, Rare Candies, Day Care growth, and scripted level changes
+cannot push a Pokémon past it. The player profile always shows the current
+**MIN** training level and **MAX** boss cap, so the strategic boundaries are
+visible in game.
 
-### Enforced boss level caps
+Reaching the cap does not make later Trainer experience entirely worthless. If
+a capped Pokémon would earn EXP, NuzLike takes a configurable portion—75% by
+default—and divides that single shared pool among conscious teammates below the
+cap. It never multiplies the award, and it never pushes a recipient above MAX.
+You can therefore use an established lead to help develop the rest of the team,
+but you cannot grind beyond the next challenge.
 
-Your Pokémon cannot advance beyond the configured cap for the next Gym, Elite
-Four member, or Champion. The cap also applies to Rare Candies, Day Care, and
-scripted level changes—not only ordinary battle EXP.
+### Gyms are milestones and recovery points
 
-If a Pokémon at the cap would receive trainer EXP, it gets none of that award.
-By default, 75% of the blocked EXP is divided across eligible conscious
-teammates below the cap. It is one shared pool, never multiplied, and no
-recipient can cross the current cap. The patcher lets you change the percentage
-from 0% to 100%.
+Every Poké Mart sells a consumable **Gym Pass** for ₽1,000. Use one while
+standing inside a Gym you have defeated and every eligible Pokémon in your
+party trains up to that Gym's configured level. This is what makes the no-grind
+structure practical: a newly caught specialist or emergency replacement can
+join the active roster without hours of repetitive battling.
 
-The player profile shows the current minimum training level and maximum cap
-while the challenge is active.
+The game really advances each Pokémon one level at a time behind a fade to
+black. It stays out of your way unless a Pokémon wants to learn a move or evolve,
+in which case the original decision and evolution scenes appear normally. The
+pass is consumed only if somebody can benefit. In Crystal and Emerald, the
+training represents three days spent at the Gym and advances the game's clock
+accordingly.
 
-### Gym Pass training
+EV-improving items also appear in every Poké Mart for one tenth of their normal
+price. Money, team composition, remaining Trainers, Gym Passes, and stat
+investment replace time spent grinding as the resources you manage between
+bosses.
 
-Every Poké Mart sells a consumable **Gym Pass** for ₽1,000. Use one inside a Gym
-you have already defeated to train every eligible Pokémon in your current party
-up to that Gym's configured level. The pass is consumed only when at least one
-party member can benefit.
+### Loss changes the run instead of stopping the story
 
-Training advances each Pokémon one real level at a time. Ordinary level and stat
-screens are skipped, but the native move-learning prompt and evolution scene run
-whenever that level would normally trigger them. The training screen otherwise
-needs no input.
+A Pokémon that faints after battle is immediately retired to reserved PC boxes
+named **MEMORIAL**. You may inspect or release a Memorial Pokémon, but you cannot
+withdraw it or sneak another Pokémon into the protected boxes. If the Memorial
+is full, NuzLike refuses the retirement rather than deleting or partially
+moving anything.
 
-In games with a clock, the training represents three days spent at the Gym and
-advances time-based events accordingly. The Gym Pass is designed to make a new
-or under-levelled team member usable without wild grinding.
+A fallen teammate still leaves something behind. By default, the survivors
+divide 75% of all experience it earned above the current MIN. Eggs, fainted
+teammates, the lost Pokémon, and Pokémon already at MAX are ineligible, and any
+experience that cannot fit below the cap is lost. A death therefore changes the
+shape of the team while helping the run continue; it never makes the decision
+free.
 
-### HMs work from the Bag
+A full-party wipe invalidates the run save. That is the roguelike endpoint: the
+next attempt begins from the start, with different encounters and different
+decisions. If you want a gentler experience, take an emulator save state after
+each Gym Leader and treat those as your own manual checkpoints.
 
-Selecting an HM you own from the Bag or TM/HM Case presents separate **USE** and
-**TEACH** actions. USE attempts its field action without requiring a compatible
-Pokémon; TEACH always opens the original Pokémon-selection and teaching flow.
-The original Badge, story, and location requirements still apply to USE, so it
-cannot bypass normal progression.
+### Progress does not depend on catching an HM user
 
-This applies to every supported game and to every HM that has an overworld
-action, including Cut, Fly, Surf, Strength, Flash, Whirlpool, Waterfall, Rock
-Smash, and Dive where those moves exist.
+Scarce encounters should shape your battle strategy, not randomly make the
+campaign impossible. Selecting an HM from the Bag or TM/HM Case therefore gives
+you separate **USE** and **TEACH** choices. USE performs its field action without
+requiring a compatible party member; TEACH follows the original move-teaching
+flow. Badge, story, and location requirements still apply, so this cannot skip
+normal progression.
 
-### The Memorial and permadeath
+This covers every field HM present in a supported game, including Cut, Fly,
+Surf, Strength, Flash, Whirlpool, Waterfall, Rock Smash, and Dive where
+applicable.
 
-After a battle, fainted party members are moved automatically into reserved PC
-boxes named **MEMORIAL**. Before becoming Champion, you may inspect or release
-Pokémon there, but you cannot withdraw, move, rename, deposit, or give items to
-them. The reserved boxes are named from the beginning so they cannot be mistaken
-for ordinary storage.
+## Winning the run
 
-Losing a Pokémon also passes on part of its training: 75% of all EXP it earned
-above the current **MIN** is divided evenly among its eligible surviving party
-members. The inheritance cannot push anyone above **MAX**. Eggs, fainted
-teammates, the lost Pokémon itself, and teammates already at the cap receive
-nothing; any EXP that cannot fit is lost.
+Your first Champion victory is the finish line. The game announces that the
+NuzLike run is complete and turns off its challenge restrictions: wild
+encounters and wild EXP return, the level cap disappears entirely, fainted
+Pokémon stop going to the Memorial, and its boxes become ordinary storage. The
+profile range, special vitamin economy, and HM Bag shortcuts also disappear.
 
-If the Memorial has no room, NuzLike will not delete or partially move a
-Pokémon. It stops and reports that storage must be freed.
-
-A full-party wipe invalidates the run save. If you want a less punishing
-experience, you can make an emulator savestate after beating each Gym Leader
-and return to it manually after a wipe.
-
-### Cheaper training items
-
-EV-improving items are sold in every Poké Mart for one tenth of their usual
-price, providing another controlled way to develop the small roster available
-to you.
-
-### The challenge ends at the Championship
-
-After the first Champion victory, the game clearly announces that NuzLike is
-over and bypasses the hack's runtime features. Normal wild encounters and wild
-EXP return; there is no NuzLike level cap at all (rather than a cap of 100);
-faint retirement is disabled; the profile stops showing the NuzLike range;
-and the Memorial becomes ordinary accessible PC storage. NuzLike's special
-vitamin stock and prices and HM Bag actions also switch off. Gym Passes remain
-stocked and usable as the deliberate exception.
-The completed save remains playable under the original game's ordinary rules.
+Gym Passes remain available as the one deliberate postgame convenience. The
+rest of the completed save continues under the original game's normal rules;
+NuzLike does not hold the postgame hostage to a run you have already won.
 
 ## Supported games
 
@@ -161,19 +164,19 @@ listed port is still undergoing emulator and owner playtesting.
 Emerald has received the most manual testing, but even it is not known to be
 completable without a blocker.
 
-## Make a NuzLike game
+## Start your own run
 
 You need your own legally obtained backup of a supported game. NuzLike does
 not include or download Pokémon games, ROMs, saves, artwork, or extracted game
 data.
 
-1. Keep an untouched copy of your original backup.
-2. Download the patcher for your platform from the GitHub release.
-3. Select your game backup. The patcher identifies the game automatically.
-4. Choose Easy, Medium, Hard, or edit individual boss caps.
-5. Set the capped-EXP sharing percentage if you do not want the 75% default.
-6. Create a new patched copy and load that copy in your emulator or hardware.
-7. Start with a fresh, disposable save.
+1. Keep an untouched copy of your original game backup.
+2. Download the NuzLike patcher for your platform from the GitHub release.
+3. Select the backup; NuzLike identifies the game automatically.
+4. Choose Easy, Medium, or Hard caps, or customize every boss individually.
+5. Optionally change the capped-EXP sharing percentage from its 75% default.
+6. Create a separate patched copy and open it in your emulator or hardware.
+7. Begin a fresh, disposable save and start the run.
 
 The patcher never edits the selected input in place. It validates the game and
 every protected patch site before atomically writing a separate output file. An
@@ -185,7 +188,7 @@ x86-64 variants where the platform supports both. A missing package in a given
 release means that build has not yet passed packaging checks; see
 [BUILDING.md](BUILDING.md) if you want to build the app yourself.
 
-### Choosing level caps
+### Choose the pressure of the run
 
 - **Medium** uses published community hardcore-Nuzlocke cap tables and is the
   default.
