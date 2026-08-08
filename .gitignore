@@ -13,6 +13,7 @@ ui-dist/
 src-tauri/target/
 src-tauri/gen/
 src-tauri/icons/
+src-tauri/resources/
 
 # This repository distributes patching machinery, never game data or products.
 *.gb

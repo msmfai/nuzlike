@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Quicklocke Patcher",
-  "version": "0.1.0-pre-alpha.11",
+  "version": "0.1.0-pre-alpha.12",
   "identifier": "org.quickloke.patcher",
   "build": {
     "beforeDevCommand": "npm run ui:dev",
@@ -32,6 +32,10 @@
     "longDescription": "A ROM-free patcher for all supported Generation I through III Quicklocke ports.",
     "copyright": "Copyright © 2026 Quicklocke contributors",
     "license": "GPL-3.0-or-later",
+    "resources": {
+      "resources/engines/UPR-FVX.jar": "engines/UPR-FVX.jar",
+      "resources/runtime/": "runtime/"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
