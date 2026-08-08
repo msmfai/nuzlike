@@ -1,7 +1,7 @@
-# Customizing a Quicklocke run
+# Customizing a NuzLike run
 
 You do not need to edit a configuration file when using the graphical patcher.
-It exposes the same options as ordinary controls and starts with Quicklocke's
+It exposes the same options as ordinary controls and starts with NuzLike's
 recommended defaults. These JSON files are for players who want a reusable
 configuration or use the command-line patcher.
 
@@ -46,7 +46,7 @@ misspelled boss names.
 `overflow_percent` controls how much trainer EXP blocked by the current level
 cap becomes one shared pool for eligible teammates below the cap.
 
-- `75` is the Quicklocke default.
+- `75` is the NuzLike default.
 - `100` shares the entire blocked award.
 - `0` discards it all.
 
@@ -65,7 +65,7 @@ The three values under `debug` produce a dedicated testing build:
   still permitting a battle when spoken to.
 
 All three default to `false`. They are intended for testing broken or unfinished
-ports and are not Quicklocke difficulty settings.
+ports and are not NuzLike difficulty settings.
 
 ## Example
 
@@ -103,11 +103,11 @@ Surge's community cap with a stricter personal cap and enables one debug aid:
 Apply it with the matching recipe:
 
 ```sh
-python3 -m quickloke_patcher apply \
+python3 -m nuzlike_patcher apply \
   --input /path/to/your-yellow-backup.gbc \
   --recipe recipes/yellow.json \
   --config /path/to/my-yellow-run.json \
-  --output /path/to/quicklocke-yellow.gbc
+  --output /path/to/nuzlike-yellow.gbc
 ```
 
 The input is never edited in place.
@@ -115,7 +115,7 @@ The input is never edited in place.
 ## Rules that are not configurable yet
 
 Configuration changes only level caps, the EXP-sharing percentage, and the
-three debug switches. The rest of the Quicklocke rules—including one encounter
+three debug switches. The rest of the NuzLike rules—including one encounter
 per area, no wild EXP, Gym Pass behavior, Memorial retirement, and the
 Championship unlock—remain fixed.
 

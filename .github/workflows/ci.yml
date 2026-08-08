@@ -23,4 +23,4 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m unittest discover -s tests -v
       - run: python tools/release_audit.py --tree . --history
-      - run: python -m quickloke_patcher --help
+      - run: python -m nuzlike_patcher --help

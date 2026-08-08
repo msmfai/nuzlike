@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 name: app-builds
 
@@ -18,15 +18,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: msmfai/universal-pokemon-randomizer-fvx
-          ref: d824655b5b6e303d000b7463daa49d6a279b1117
+          repository: msmfai/nuzlike-randomizer-fvx
+          ref: 849961023a4b39db31a996d0ca3a6afe4d3446cd
           path: .fvx-source
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
       - name: Build and test FVX bridge
-        run: .fvx-source/gradlew -p .fvx-source :random:jar :random:quicklockeBridgeTest
+        run: .fvx-source/gradlew -p .fvx-source :random:jar :random:nuzlikeBridgeTest
       - uses: actions/upload-artifact@v4
         with:
           name: fvx-engine
@@ -100,16 +100,16 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-assets
-          tar -czf "release-assets/quickloke-${{ matrix.target }}.tar.gz" -C "src-tauri/target/${{ matrix.target }}/release/bundle" .
+          tar -czf "release-assets/nuzlike-${{ matrix.target }}.tar.gz" -C "src-tauri/target/${{ matrix.target }}/release/bundle" .
       - name: Package Windows bundle
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release-assets | Out-Null
-          Compress-Archive -Path "src-tauri/target/${{ matrix.target }}/release/bundle/*" -DestinationPath "release-assets/quickloke-${{ matrix.target }}.zip"
+          Compress-Archive -Path "src-tauri/target/${{ matrix.target }}/release/bundle/*" -DestinationPath "release-assets/nuzlike-${{ matrix.target }}.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: quickloke-${{ matrix.target }}
+          name: nuzlike-${{ matrix.target }}
           path: release-assets/*
           if-no-files-found: error
 
@@ -122,11 +122,11 @@ jobs:
           - name: ARM64
             rust_target: aarch64-linux-android
             tauri_target: aarch64
-            artifact: quickloke-android-arm64
+            artifact: nuzlike-android-arm64
           - name: x86-64
             rust_target: x86_64-linux-android
             tauri_target: x86_64
-            artifact: quickloke-android-x86_64
+            artifact: nuzlike-android-x86_64
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     needs: fvx-engine
@@ -177,7 +177,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: quickloke-*
+          pattern: nuzlike-*
           path: release-assets
           merge-multiple: true
       - name: Create pre-alpha release if needed
@@ -186,5 +186,5 @@ jobs:
           TAG: ${{ github.ref_name }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          gh release view "$TAG" --repo "$REPOSITORY" || gh release create "$TAG" --repo "$REPOSITORY" --prerelease --title "[Pre-Alpha] Quicklocke $TAG" --notes "Pre-alpha build. This release is incomplete and may softlock; keep backups of your saves. Includes the combined FVX randomizer and Quicklocke patcher for every supported game."
+          gh release view "$TAG" --repo "$REPOSITORY" || gh release create "$TAG" --repo "$REPOSITORY" --prerelease --title "[Pre-Alpha] NuzLike $TAG" --notes "Pre-alpha build. This release is incomplete and may softlock; keep backups of your saves. Includes the combined FVX randomizer and NuzLike patcher for every supported game."
           gh release upload "$TAG" release-assets/* --repo "$REPOSITORY" --clobber

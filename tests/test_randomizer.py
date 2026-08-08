@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from quickloke_patcher import (
+from nuzlike_patcher import (
     PatchError,
     analyze_randomizer_compatibility,
     changed_ranges,
@@ -55,7 +55,7 @@ class RandomizerIntegrationTests(unittest.TestCase):
         self.randomized.write_bytes(randomized)
         manifest = {
             "schema": 3,
-            "engine": "upr-fvx-quicklocke",
+            "engine": "upr-fvx-nuzlike",
             "engine_version": "FVX 1.6.1",
             "upstream_base_revision": "d9700e2dd668f19e1392b8d5e8f370dd484245b3",
             "seed": "123456789",
@@ -100,7 +100,7 @@ class RandomizerIntegrationTests(unittest.TestCase):
             "randomized_sha256": hashlib.sha256(randomized).hexdigest(),
             "randomizer_log_sha256": hashlib.sha256(b"log").hexdigest(),
             "fvx_check_value": 42,
-            "next_stage": "quicklocke",
+            "next_stage": "nuzlike",
             "warnings": [],
         }
         manifest.update(changes)
@@ -146,14 +146,14 @@ class RandomizerIntegrationTests(unittest.TestCase):
         self.assertEqual(report["collisions"], [{
             "start": 702,
             "end": 704,
-            "resolution": "quicklocke-final",
+            "resolution": "nuzlike-final",
             "message": (
-                "FVX and Quicklocke both change ROM bytes 0x2be-0x2bf; "
+                "FVX and NuzLike both change ROM bytes 0x2be-0x2bf; "
                 "this option combination needs an explicit composition rule"
             ),
         }])
 
-    def test_composition_preserves_fvx_only_bytes_and_quicklocke_wins_overlap(self) -> None:
+    def test_composition_preserves_fvx_only_bytes_and_nuzlike_wins_overlap(self) -> None:
         self.write_recipe(offset=700)
         after = bytearray(self.clean_bytes)
         after[600:604] = b"FVX!"
@@ -173,7 +173,7 @@ class RandomizerIntegrationTests(unittest.TestCase):
         self.assertEqual(composed[600:604], b"FVX!")
         self.assertEqual(composed[700:704], b"\xa0\xa1\xa2\xa3")
         self.assertEqual(composed[704:706], b"SH")
-        self.assertEqual(report["collisions"][0]["resolution"], "quicklocke-final")
+        self.assertEqual(report["collisions"][0]["resolution"], "nuzlike-final")
         self.assertEqual(report["final_sha256"], hashlib.sha256(composed).hexdigest())
         self.assertEqual(
             json.loads(combined_manifest.read_text(encoding="utf-8")), report

@@ -1,11 +1,11 @@
 # Default level-cap research audit
 
-Retrieved 2026-08-03. This audit covers Quicklocke's supported pre-League games,
+Retrieved 2026-08-03. This audit covers NuzLike's supported pre-League games,
 Red/Blue through Emerald and FireRed/LeafGreen.
 
 ## Method
 
-Quicklocke does not derive its patcher defaults from ROM trainer parties. A
+NuzLike does not derive its patcher defaults from ROM trainer parties. A
 value is a default when it appears in both comprehensive community tables below.
 Game-specific Nuzlocke Tracker guides provide a third community source for Gym
 caps and adjudicate disagreements.
@@ -19,7 +19,7 @@ editable. Agreement in this audit means agreement between published community
 tables; it does not mean every player uses the same house rules.
 
 These researched values are the patcher's **Medium** preset. No comparable
-community-wide Easy/Medium/Hard convention was found. Quicklocke therefore
+community-wide Easy/Medium/Hard convention was found. NuzLike therefore
 labels Easy and Hard as project-authored balance presets and stores their full
 tables in `presets/level_caps.json`; it does not present those values as sourced
 consensus or derive them with a fixed addition or subtraction.
@@ -45,21 +45,21 @@ group them and the relevant boss levels are the same.
 ### Yellow Lt. Surge
 
 All three cap sources list level 28. Surge has only one Pokémon, a level-28
-Raichu, which makes this a legitimate balance concern for Quicklocke's full-party
+Raichu, which makes this a legitimate balance concern for NuzLike's full-party
 training. However, the evidence found for level 26 was an individual player
 voluntarily entering at 26, not a shared cap convention. The default is therefore
 28. Players who want the stricter interpretation can set 26 in the patcher.
 
 ### Crystal Bugsy
 
-RN lists level 15, while NU and NT list level 16. Quicklocke uses 16, the value
+RN lists level 15, while NU and NT list level 16. NuzLike uses 16, the value
 supported by two of the three community sources.
 
 ### Johto mid-game order
 
 The published cap values are Chuck 30, Jasmine 35, and Pryce 31. Community
 discussion repeatedly recommends `Chuck -> Pryce -> Jasmine` to keep a monotonic
-level curve. Quicklocke adopts that order but does not change any of the three
+level curve. NuzLike adopts that order but does not change any of the three
 community cap values:
 
 - [r/nuzlocke discussion: level-cap ordering](https://www.reddit.com/r/nuzlocke/comments/8cejlk/level_limits/)
@@ -70,5 +70,5 @@ community cap values:
 
 Community rules differ on whether the League uses one entry cap or separate
 Elite Four and Champion milestones. NU and RN publish separate values for these
-games. Quicklocke keeps those separately configurable because its runtime can
+games. NuzLike keeps those separately configurable because its runtime can
 advance the cap after each victory; no value is inferred from the current party.

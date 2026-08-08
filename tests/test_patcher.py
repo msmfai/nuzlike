@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from quickloke_patcher import PatchError, apply_recipe
+from nuzlike_patcher import PatchError, apply_recipe
 
 
 class PatcherTests(unittest.TestCase):
@@ -17,7 +17,7 @@ class PatcherTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.input = self.root / "owned-backup.gbc"
-        self.output = self.root / "quicklocke.gbc"
+        self.output = self.root / "nuzlike.gbc"
         self.recipe = self.root / "recipe.json"
         self.config = self.root / "config.json"
         data = bytearray(range(64))

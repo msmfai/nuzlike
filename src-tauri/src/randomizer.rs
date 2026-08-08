@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Quicklocke contributors
+// Copyright (C) 2026 NuzLike contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -7,7 +7,7 @@ use crate::patcher::{
     PatchReport, Recipe, UserConfig, apply, repair_checksum_for_recipe, write_ranges,
 };
 
-const ENGINE: &str = "upr-fvx-quicklocke";
+const ENGINE: &str = "upr-fvx-nuzlike";
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -104,8 +104,8 @@ pub struct CombinedManifest {
     pub randomized_sha256: String,
     pub randomizer_log_sha256: String,
     pub fvx_check_value: i32,
-    pub quicklocke_config: UserConfig,
-    pub quicklocke_report: PatchReport,
+    pub nuzlike_config: UserConfig,
+    pub nuzlike_report: PatchReport,
     pub final_sha256: String,
     pub semantic_rules: Vec<CompositionRule>,
     pub warnings: Vec<String>,
@@ -145,7 +145,7 @@ fn validate_manifest(
         return Err("randomizer manifest must use schema 3".into());
     }
     if manifest.engine != ENGINE || !manifest.engine_version.starts_with("FVX ") {
-        return Err("randomizer manifest must identify the Quicklocke FVX engine".into());
+        return Err("randomizer manifest must identify the NuzLike FVX engine".into());
     }
     if !valid_hex(&manifest.upstream_base_revision, 40) {
         return Err("randomizer upstream revision must be a 40-digit Git revision".into());
@@ -178,8 +178,8 @@ fn validate_manifest(
             ));
         }
     }
-    if manifest.next_stage != "quicklocke" {
-        return Err("randomizer manifest is not intended for the Quicklocke stage".into());
+    if manifest.next_stage != "nuzlike" {
+        return Err("randomizer manifest is not intended for the NuzLike stage".into());
     }
     if manifest.input_layout != "vanilla" {
         return Err("this composition path requires an FVX vanilla input layout".into());
@@ -368,11 +368,11 @@ fn intersections(left: &[(usize, usize)], right: &[(usize, usize)]) -> Vec<(usiz
 
 fn composition_rules(settings: &SemanticSettings) -> Vec<CompositionRule> {
     let mut rules = vec![
-        CompositionRule { system: "level_caps", owner: "quicklocke", message: "Player caps remain the selected fixed Quicklocke values and are not recalculated from randomized trainers.".into() },
-        CompositionRule { system: "encounters", owner: "quicklocke-runtime", message: "FVX supplies encounter species; Quicklocke enforces capture-item gating, one encounter per area, and duplicate-species exclusion.".into() },
-        CompositionRule { system: "hm_progression", owner: "quicklocke-runtime", message: "FVX may change compatibility; Quicklocke preserves direct bag actions and story authorization checks.".into() },
-        CompositionRule { system: "shops", owner: "quicklocke-final", message: "FVX randomizes ordinary shop contents first; Quicklocke then guarantees Gym Passes and discounted EV items.".into() },
-        CompositionRule { system: "memorial_and_champion", owner: "quicklocke-runtime", message: "Memorial handling and Champion shutdown remain Quicklocke rules.".into() },
+        CompositionRule { system: "level_caps", owner: "nuzlike", message: "Player caps remain the selected fixed NuzLike values and are not recalculated from randomized trainers.".into() },
+        CompositionRule { system: "encounters", owner: "nuzlike-runtime", message: "FVX supplies encounter species; NuzLike enforces capture-item gating, one encounter per area, and duplicate-species exclusion.".into() },
+        CompositionRule { system: "hm_progression", owner: "nuzlike-runtime", message: "FVX may change compatibility; NuzLike preserves direct bag actions and story authorization checks.".into() },
+        CompositionRule { system: "shops", owner: "nuzlike-final", message: "FVX randomizes ordinary shop contents first; NuzLike then guarantees Gym Passes and discounted EV items.".into() },
+        CompositionRule { system: "memorial_and_champion", owner: "nuzlike-runtime", message: "Memorial handling and Champion shutdown remain NuzLike rules.".into() },
     ];
     if settings.trainer_levels_modified {
         rules.push(CompositionRule {
@@ -385,10 +385,10 @@ fn composition_rules(settings: &SemanticSettings) -> Vec<CompositionRule> {
         });
     }
     if settings.wild_levels_modified {
-        rules.push(CompositionRule { system: "randomized_wild_levels", owner: "fvx-then-quicklocke", message: format!("FVX applies its {}% wild modifier, then Quicklocke applies only its pre-first-badge floor.", settings.wild_level_modifier) });
+        rules.push(CompositionRule { system: "randomized_wild_levels", owner: "fvx-then-nuzlike", message: format!("FVX applies its {}% wild modifier, then NuzLike applies only its pre-first-badge floor.", settings.wild_level_modifier) });
     }
     if settings.field_items_mode != "UNCHANGED" {
-        rules.push(CompositionRule { system: "capture_item_gate", owner: "fvx-then-quicklocke-runtime", message: "Randomized field items may change when catching items appear; encounters unlock only after one is actually owned.".into() });
+        rules.push(CompositionRule { system: "capture_item_gate", owner: "fvx-then-nuzlike-runtime", message: "Randomized field items may change when catching items appear; encounters unlock only after one is actually owned.".into() });
     }
     rules
 }
@@ -408,8 +408,8 @@ pub fn analyze(
         .map(|(start, end)| Collision {
             start,
             end,
-            message: format!("FVX and Quicklocke both change bytes 0x{start:x}-0x{:x}; this needs an explicit composition rule", end - 1),
-            resolution: "quicklocke-final",
+            message: format!("FVX and NuzLike both change bytes 0x{start:x}-0x{:x}; this needs an explicit composition rule", end - 1),
+            resolution: "nuzlike-final",
         })
         .collect::<Vec<_>>();
     Ok(CompatibilityReport {
@@ -451,7 +451,7 @@ pub fn compose(
         bytes: patched.bytes,
         manifest: CombinedManifest {
             schema: 1,
-            pipeline: "upr-fvx-then-quicklocke",
+            pipeline: "upr-fvx-then-nuzlike",
             randomizer_engine: randomizer.engine,
             randomizer_engine_version: randomizer.engine_version,
             randomizer_upstream_revision: randomizer.upstream_base_revision,
@@ -461,8 +461,8 @@ pub fn compose(
             randomized_sha256: randomizer.randomized_sha256,
             randomizer_log_sha256: randomizer.randomizer_log_sha256,
             fvx_check_value: randomizer.fvx_check_value,
-            quicklocke_config: config.clone(),
-            quicklocke_report: patched.report,
+            nuzlike_config: config.clone(),
+            nuzlike_report: patched.report,
             final_sha256,
             semantic_rules: compatibility.semantic_rules,
             warnings: randomizer.warnings,
@@ -485,7 +485,7 @@ mod tests {
             "generation": 2, "default_extension": "gbc", "input_size": clean.len(),
             "input_sha256": sha256(clean), "randomized_size": randomized.len(),
             "randomized_sha256": sha256(randomized), "randomizer_log_sha256": sha256(b"log"),
-            "fvx_check_value": 1, "next_stage": "quicklocke", "warnings": [],
+            "fvx_check_value": 1, "next_stage": "nuzlike", "warnings": [],
             "semantic_settings": {
                 "starters_mode":"UNCHANGED", "evolutions_mode":"UNCHANGED", "movesets_mode":"UNCHANGED",
                 "trainers_mode":"RANDOM", "trainer_levels_modified":true, "trainer_level_modifier":10,
@@ -583,14 +583,14 @@ mod tests {
         assert_eq!(first.bytes, second.bytes);
         assert_eq!(first.manifest.final_sha256, second.manifest.final_sha256);
         assert_eq!(first.manifest.randomizer_settings, "settings");
-        assert_eq!(first.manifest.quicklocke_config.level_caps["roxanne"], 18);
+        assert_eq!(first.manifest.nuzlike_config.level_caps["roxanne"], 18);
         assert_eq!(first.bytes[20], 18);
         assert_eq!(first.bytes[21], 60);
         assert_eq!(&first.bytes[700..702], &[1, 2]);
     }
 
     #[test]
-    fn composition_rebases_fvx_bytes_and_records_quicklocke_owned_collisions() {
+    fn composition_rebases_fvx_bytes_and_records_nuzlike_owned_collisions() {
         let clean = vec![0_u8; 1024];
         let mut randomized = clean.clone();
         randomized[600] = 9;
@@ -618,6 +618,6 @@ mod tests {
         assert_eq!(result.bytes[600], 9);
         assert_eq!(&result.bytes[700..702], &[1, 2]);
         assert_eq!(result.manifest.collisions.len(), 1);
-        assert_eq!(result.manifest.collisions[0].resolution, "quicklocke-final");
+        assert_eq!(result.manifest.collisions[0].resolution, "nuzlike-final");
     }
 }

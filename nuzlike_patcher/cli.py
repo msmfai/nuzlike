@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from .randomizer import analyze_randomizer_compatibility, compose_randomized_rom
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(prog="quickloke-patcher")
+    root = argparse.ArgumentParser(prog="nuzlike-patcher")
     root.add_argument("--version", action="version", version=__version__)
     commands = root.add_subparsers(dest="command", required=True)
 
@@ -32,7 +32,7 @@ def parser() -> argparse.ArgumentParser:
 
     analyze = commands.add_parser(
         "analyze-randomizer",
-        help="verify an FVX manifest and report Quicklocke write collisions",
+        help="verify an FVX manifest and report NuzLike write collisions",
     )
     analyze.add_argument("--clean", required=True, type=Path)
     analyze.add_argument("--randomized", required=True, type=Path)
@@ -41,7 +41,7 @@ def parser() -> argparse.ArgumentParser:
 
     compose = commands.add_parser(
         "compose-randomizer",
-        help="compose an FVX output with Quicklocke using the clean-ROM rebase policy",
+        help="compose an FVX output with NuzLike using the clean-ROM rebase policy",
     )
     compose.add_argument("--clean", required=True, type=Path)
     compose.add_argument("--randomized", required=True, type=Path)
@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
                 config_path=arguments.config,
             )
     except PatchError as error:
-        print(f"quickloke-patcher: {error}", file=sys.stderr)
+        print(f"nuzlike-patcher: {error}", file=sys.stderr)
         return 2
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0

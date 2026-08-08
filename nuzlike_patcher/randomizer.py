@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .patcher import (
 
 
 RANDOMIZER_MANIFEST_SCHEMA = 3
-RANDOMIZER_ENGINE = "upr-fvx-quicklocke"
+RANDOMIZER_ENGINE = "upr-fvx-nuzlike"
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _REVISION = re.compile(r"[0-9a-f]{40}")
 _SIGNED_64_MIN = -(2**63)
@@ -166,8 +166,8 @@ def load_randomizer_manifest(
             raise PatchError(f"randomizer manifest {field} must be a SHA-256 digest")
     if not isinstance(manifest["fvx_check_value"], int) or isinstance(manifest["fvx_check_value"], bool):
         raise PatchError("randomizer manifest fvx_check_value must be an integer")
-    if manifest["next_stage"] != "quicklocke":
-        raise PatchError("randomizer manifest is not intended for the Quicklocke stage")
+    if manifest["next_stage"] != "nuzlike":
+        raise PatchError("randomizer manifest is not intended for the NuzLike stage")
     if not isinstance(manifest["warnings"], list) or not all(
         isinstance(warning, str) for warning in manifest["warnings"]
     ):
@@ -187,7 +187,7 @@ def load_randomizer_manifest(
     ):
         raise PatchError("randomizer manifest does not match the randomized ROM")
     if len(clean) != len(randomized):
-        raise PatchError("FVX changed the ROM size; this Quicklocke recipe cannot be safely composed")
+        raise PatchError("FVX changed the ROM size; this NuzLike recipe cannot be safely composed")
     return manifest
 
 
@@ -225,32 +225,32 @@ def _validate_semantic_settings(value: object) -> None:
 
 
 def semantic_composition_rules(settings: dict[str, Any]) -> list[dict[str, str]]:
-    """Explain ownership for FVX settings that share a system with Quicklocke."""
+    """Explain ownership for FVX settings that share a system with NuzLike."""
     rules = [
         {
             "system": "level_caps",
-            "owner": "quicklocke",
-            "message": "Player level caps remain the selected fixed Quicklocke values and are not recalculated from randomized trainers.",
+            "owner": "nuzlike",
+            "message": "Player level caps remain the selected fixed NuzLike values and are not recalculated from randomized trainers.",
         },
         {
             "system": "encounters",
-            "owner": "quicklocke-runtime",
-            "message": "FVX supplies encounter species; Quicklocke still enforces capture-item gating, one encounter per area, and duplicate-species exclusion.",
+            "owner": "nuzlike-runtime",
+            "message": "FVX supplies encounter species; NuzLike still enforces capture-item gating, one encounter per area, and duplicate-species exclusion.",
         },
         {
             "system": "hm_progression",
-            "owner": "quicklocke-runtime",
-            "message": "FVX may change TM/HM compatibility, while Quicklocke preserves each HM's direct bag action and story authorization checks.",
+            "owner": "nuzlike-runtime",
+            "message": "FVX may change TM/HM compatibility, while NuzLike preserves each HM's direct bag action and story authorization checks.",
         },
         {
             "system": "shops",
-            "owner": "quicklocke-final",
-            "message": "FVX randomizes ordinary shop contents first; Quicklocke then guarantees Gym Passes and discounted EV items in every Poké Mart.",
+            "owner": "nuzlike-final",
+            "message": "FVX randomizes ordinary shop contents first; NuzLike then guarantees Gym Passes and discounted EV items in every Poké Mart.",
         },
         {
             "system": "memorial_and_champion",
-            "owner": "quicklocke-runtime",
-            "message": "Memorial handling and Champion shutdown remain Quicklocke rules regardless of randomized species or trainers.",
+            "owner": "nuzlike-runtime",
+            "message": "Memorial handling and Champion shutdown remain NuzLike rules regardless of randomized species or trainers.",
         },
     ]
     if settings["trainer_levels_modified"]:
@@ -265,16 +265,16 @@ def semantic_composition_rules(settings: dict[str, Any]) -> list[dict[str, str]]
     if settings["wild_levels_modified"]:
         rules.append({
             "system": "randomized_wild_levels",
-            "owner": "fvx-then-quicklocke",
+            "owner": "fvx-then-nuzlike",
             "message": (
                 f"FVX applies its {settings['wild_level_modifier']}% wild-level modifier, then "
-                "Quicklocke applies only its pre-first-badge minimum catch-level floor."
+                "NuzLike applies only its pre-first-badge minimum catch-level floor."
             ),
         })
     if settings["field_items_mode"] != "UNCHANGED":
         rules.append({
             "system": "capture_item_gate",
-            "owner": "fvx-then-quicklocke-runtime",
+            "owner": "fvx-then-nuzlike-runtime",
             "message": "Randomized field items may change when a catching item is obtained; encounters unlock only after the player actually owns one.",
         })
     return rules
@@ -310,7 +310,7 @@ def _merge_ranges(ranges: Iterable[tuple[int, int]]) -> list[tuple[int, int]]:
 
 
 def recipe_write_ranges(recipe: dict[str, Any]) -> list[tuple[int, int]]:
-    """Resolve every byte range Quicklocke may mutate for collision checks."""
+    """Resolve every byte range NuzLike may mutate for collision checks."""
     ranges: list[tuple[int, int]] = []
     source_copy = recipe.get("source_copy")
     if source_copy is not None:
@@ -380,8 +380,8 @@ def analyze_randomizer_compatibility(
     clean = Path(clean_rom).read_bytes()
     randomized = Path(randomized_rom).read_bytes()
     randomizer_ranges = changed_ranges(clean, randomized)
-    quicklocke_ranges = recipe_write_ranges(recipe)
-    collisions = _intersections(randomizer_ranges, quicklocke_ranges)
+    nuzlike_ranges = recipe_write_ranges(recipe)
+    collisions = _intersections(randomizer_ranges, nuzlike_ranges)
     semantic_rules = semantic_composition_rules(manifest["semantic_settings"])
     return {
         "compatible": not collisions,
@@ -393,16 +393,16 @@ def analyze_randomizer_compatibility(
         "randomizer_changed_ranges": [
             {"start": start, "end": end} for start, end in randomizer_ranges
         ],
-        "quicklocke_write_ranges": [
-            {"start": start, "end": end} for start, end in quicklocke_ranges
+        "nuzlike_write_ranges": [
+            {"start": start, "end": end} for start, end in nuzlike_ranges
         ],
         "collisions": [
             {
                 "start": start,
                 "end": end,
-                "resolution": "quicklocke-final",
+                "resolution": "nuzlike-final",
                 "message": (
-                    f"FVX and Quicklocke both change ROM bytes 0x{start:x}-0x{end - 1:x}; "
+                    f"FVX and NuzLike both change ROM bytes 0x{start:x}-0x{end - 1:x}; "
                     "this option combination needs an explicit composition rule"
                 ),
             }
@@ -473,7 +473,7 @@ def compose_randomized_rom(
     output_manifest: str | Path,
     config_path: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Compose FVX then Quicklocke, with Quicklocke owning dual-written bytes."""
+    """Compose FVX then NuzLike, with NuzLike owning dual-written bytes."""
     output_path = Path(output_rom)
     combined_manifest_path = Path(output_manifest)
     if output_path.exists() or combined_manifest_path.exists():
@@ -500,23 +500,23 @@ def compose_randomized_rom(
     randomized = Path(randomized_rom).read_bytes()
     effective_config = _effective_config(recipe, config_path)
 
-    with tempfile.TemporaryDirectory(prefix="quicklocke-compose-") as temporary:
-        quicklocke_path = Path(temporary) / f"quicklocke.{bridge_manifest['default_extension']}"
-        quicklocke_report = apply_recipe(
-            clean_rom, recipe_path, quicklocke_path, config_path=config_path
+    with tempfile.TemporaryDirectory(prefix="nuzlike-compose-") as temporary:
+        nuzlike_path = Path(temporary) / f"nuzlike.{bridge_manifest['default_extension']}"
+        nuzlike_report = apply_recipe(
+            clean_rom, recipe_path, nuzlike_path, config_path=config_path
         )
-        quicklocke_report.pop("output", None)
-        composed = bytearray(quicklocke_path.read_bytes())
+        nuzlike_report.pop("output", None)
+        composed = bytearray(nuzlike_path.read_bytes())
 
     for offset, (clean_byte, randomized_byte) in enumerate(zip(clean, randomized, strict=True)):
         if randomized_byte != clean_byte and composed[offset] == clean_byte:
             composed[offset] = randomized_byte
     repair_cartridge_checksum(composed, recipe["game"])
     final_sha256 = _sha256(bytes(composed))
-    quicklocke_report["output_sha256"] = final_sha256
+    nuzlike_report["output_sha256"] = final_sha256
     combined = {
         "schema": 1,
-        "pipeline": "upr-fvx-then-quicklocke",
+        "pipeline": "upr-fvx-then-nuzlike",
         "randomizer_engine": bridge_manifest["engine"],
         "randomizer_engine_version": bridge_manifest["engine_version"],
         "randomizer_upstream_revision": bridge_manifest["upstream_base_revision"],
@@ -526,8 +526,8 @@ def compose_randomized_rom(
         "randomized_sha256": bridge_manifest["randomized_sha256"],
         "randomizer_log_sha256": bridge_manifest["randomizer_log_sha256"],
         "fvx_check_value": bridge_manifest["fvx_check_value"],
-        "quicklocke_config": effective_config,
-        "quicklocke_report": quicklocke_report,
+        "nuzlike_config": effective_config,
+        "nuzlike_report": nuzlike_report,
         "final_sha256": final_sha256,
         "semantic_rules": compatibility["semantic_rules"],
         "warnings": bridge_manifest["warnings"],

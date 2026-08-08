@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 Quicklocke contributors
+# Copyright (C) 2026 NuzLike contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 """ROM-backed determinism check for the complete supported randomizer matrix."""
 from __future__ import annotations
@@ -15,7 +15,7 @@ from pathlib import Path
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SOURCE_ROOT))
 
-from quickloke_patcher import PatchError, apply_recipe, compose_randomized_rom, load_recipe
+from nuzlike_patcher import PatchError, apply_recipe, compose_randomized_rom, load_recipe
 
 
 GAMES = ("red", "blue", "yellow", "crystal", "emerald", "firered", "leafgreen")
@@ -56,7 +56,7 @@ def run_fvx(
     log = output.with_suffix(".fvx.log")
     result = subprocess.run(
         [
-            str(java), "-jar", str(jar), "quicklocke",
+            str(java), "-jar", str(jar), "nuzlike",
             "-i", str(rom), "-o", str(output), "-S", settings, "-z", seed,
             "--manifest", str(manifest), "--log", str(log),
         ],
@@ -79,10 +79,10 @@ def verify_game(
     if supplied_sha1 not in {value.lower() for value in recipe["accepted_sha1"]}:
         raise PatchError(f"{game}: clean ROM SHA-1 is not accepted by its public recipe")
 
-    with tempfile.TemporaryDirectory(prefix=f"quicklocke-{game}-") as temporary:
+    with tempfile.TemporaryDirectory(prefix=f"nuzlike-{game}-") as temporary:
         work = Path(temporary)
-        quicklocke = work / f"{game}-quicklocke.{extension(game)}"
-        apply_recipe(rom, recipe_path, quicklocke)
+        nuzlike = work / f"{game}-nuzlike.{extension(game)}"
+        apply_recipe(rom, recipe_path, nuzlike)
         randomized_runs: list[tuple[Path, Path, Path, Path, Path]] = []
         for run in ("a", "b"):
             randomized = work / f"{game}-{run}-randomized.{extension(game)}"
@@ -117,9 +117,9 @@ def verify_game(
             if first.read_bytes() != second.read_bytes():
                 raise PatchError(f"{game}: {label} is not deterministic")
         bridge_data = json.loads(randomized_runs[0][1].read_text(encoding="utf-8"))
-        if bridge_data["input_layout"] != "vanilla" or bridge_data["next_stage"] != "quicklocke":
+        if bridge_data["input_layout"] != "vanilla" or bridge_data["next_stage"] != "nuzlike":
             raise PatchError(f"{game}: FVX manifest does not describe the vanilla composition stage")
-        quicklocke_bytes = quicklocke.read_bytes()
+        nuzlike_bytes = nuzlike.read_bytes()
         combined_bytes = randomized_runs[0][3].read_bytes()
         configurable = recipe.get("configurable", {})
         protected_offsets = [entry["offset"] for entry in configurable.get("level_caps", [])]
@@ -128,13 +128,13 @@ def verify_game(
             for name in ("overflow_percent", "debug_flags")
             if (entry := configurable.get(name)) is not None
         )
-        if any(quicklocke_bytes[offset] != combined_bytes[offset] for offset in protected_offsets):
-            raise PatchError(f"{game}: composition changed a Quicklocke configuration byte")
+        if any(nuzlike_bytes[offset] != combined_bytes[offset] for offset in protected_offsets):
+            raise PatchError(f"{game}: composition changed a NuzLike configuration byte")
         return {
             "game": game,
             "clean_sha1": supplied_sha1,
             "fvx_sha256": digest(randomized_runs[0][0]),
-            "quicklocke_sha256": digest(quicklocke),
+            "nuzlike_sha256": digest(nuzlike),
             "combined_sha256": digest(randomized_runs[0][3]),
             "input_layout": "vanilla-identity-rebase",
             "deterministic": True,

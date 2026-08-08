@@ -1,18 +1,18 @@
 [package]
-name = "quickloke-patcher-app"
+name = "nuzlike-patcher-app"
 version = "0.1.0-pre-alpha.12"
-description = "ROM-free cross-platform Quicklocke patcher"
-authors = ["Quicklocke contributors"]
+description = "ROM-free cross-platform NuzLike patcher"
+authors = ["NuzLike contributors"]
 license = "GPL-3.0-or-later"
 edition = "2024"
 rust-version = "1.85"
 
 [lib]
-name = "quickloke_patcher_app_lib"
+name = "nuzlike_patcher_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "quickloke-patcher"
+name = "nuzlike-patcher"
 path = "src/main.rs"
 
 [build-dependencies]

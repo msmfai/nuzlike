@@ -1,4 +1,4 @@
-# Building the Quicklocke Patcher
+# Building the NuzLike Patcher
 
 The same application source builds the graphical patcher for every supported
 Generation I–III game. Game recognition and recipe selection happen at runtime;

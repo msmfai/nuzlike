@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Quicklocke contributors
+// Copyright (C) 2026 NuzLike contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -24,7 +24,7 @@ fn bundled_path(resource_dir: &Path, relative: &str) -> PathBuf {
 }
 
 fn engine_paths(resource_dir: &Path) -> (PathBuf, PathBuf) {
-    let java = std::env::var_os("QUICKLOCKE_JAVA")
+    let java = std::env::var_os("NUZLIKE_JAVA")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             bundled_path(
@@ -36,7 +36,7 @@ fn engine_paths(resource_dir: &Path) -> (PathBuf, PathBuf) {
                 },
             )
         });
-    let jar = std::env::var_os("QUICKLOCKE_FVX_JAR")
+    let jar = std::env::var_os("NUZLIKE_FVX_JAR")
         .map(PathBuf::from)
         .unwrap_or_else(|| bundled_path(resource_dir, "engines/UPR-FVX.jar"));
     (java, jar)
@@ -55,18 +55,18 @@ pub fn randomize(
     let (java, jar) = engine_paths(resource_dir);
     if !java.is_file() {
         return Err(format!(
-            "bundled Java runtime is missing at {}; reinstall this Quicklocke build",
+            "bundled Java runtime is missing at {}; reinstall this NuzLike build",
             java.display()
         ));
     }
     if !jar.is_file() {
         return Err(format!(
-            "bundled FVX engine is missing at {}; reinstall this Quicklocke build",
+            "bundled FVX engine is missing at {}; reinstall this NuzLike build",
             jar.display()
         ));
     }
     let workspace = tempfile::Builder::new()
-        .prefix("quicklocke-fvx-")
+        .prefix("nuzlike-fvx-")
         .tempdir()
         .map_err(|error| format!("cannot create private FVX workspace: {error}"))?;
     let input = workspace.path().join("clean.rom");
@@ -79,7 +79,7 @@ pub fn randomize(
     let output = Command::new(&java)
         .arg("-jar")
         .arg(&jar)
-        .arg("quicklocke")
+        .arg("nuzlike")
         .arg("-i")
         .arg(&input)
         .arg("-o")
@@ -145,7 +145,7 @@ pub fn randomize(
     let settings_object = JObject::from(settings);
     let result = env
         .call_static_method(
-            "org/quickloke/patcher/QuicklockeFvx",
+            "org/nuzlike/patcher/NuzLikeFvx",
             "randomize",
             "(Landroid/content/Context;[BLjava/lang/String;J)[B",
             &[
@@ -200,14 +200,14 @@ mod tests {
     fn bundled_engine_layout_is_stable() {
         let root = Path::new("/resources");
         let (java, jar) = engine_paths(root);
-        if std::env::var_os("QUICKLOCKE_JAVA").is_none() {
+        if std::env::var_os("NUZLIKE_JAVA").is_none() {
             assert!(java.ends_with(if cfg!(target_os = "windows") {
                 "runtime/bin/java.exe"
             } else {
                 "runtime/bin/java"
             }));
         }
-        if std::env::var_os("QUICKLOCKE_FVX_JAR").is_none() {
+        if std::env::var_os("NUZLIKE_FVX_JAR").is_none() {
             assert!(jar.ends_with("engines/UPR-FVX.jar"));
         }
     }
