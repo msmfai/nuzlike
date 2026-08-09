@@ -41,9 +41,8 @@ catching a Pokémon. After that, each named area contains exactly one random wil
 battle. Its different floors, grass, caves, water, fishing spots, and other
 random-encounter methods all share that opportunity.
 
-That one encounter uses the game's Gym Leader battle music: this is the area's
-one chance to change your run. NuzLike prefers species your Pokédex does not yet
-mark as caught while preserving the encounter table's original weights. If you
+NuzLike prefers species your Pokédex does not yet mark as caught while
+preserving the encounter table's original weights. If you
 have caught every species available there, it falls back to the full table so
 the area never becomes unusable.
 
@@ -61,17 +60,17 @@ from the Trainers already placed throughout the campaign. EXP is something you
 plan around rather than something you farm.
 
 The next Gym Leader, Elite Four member, or Champion also sets a hard level cap.
-Battle experience, Rare Candies, Day Care growth, and scripted level changes
-cannot push a Pokémon past it. The player profile always shows the current
-**MIN** training level and **MAX** boss cap, so the strategic boundaries are
-visible in game.
+Battle experience and Rare Candies cannot push a Pokémon past it, while Day
+Care growth is paused entirely. A gifted, static, or traded Pokémon that arrives
+above the cap keeps its real level but cannot gain another level until the cap
+has caught up. The player profile always shows the current **MIN** training
+level and **MAX** boss cap, so the strategic boundaries are visible in game.
 
 Reaching the cap does not make later Trainer experience entirely worthless. If
 a capped Pokémon would earn EXP, NuzLike takes a configurable portion—75% by
 default—and divides that single shared pool among conscious teammates below the
-cap. It never multiplies the award, and it never pushes a recipient above MAX.
-You can therefore use an established lead to help develop the rest of the team,
-but you cannot grind beyond the next challenge.
+cap. You can therefore use an established lead to help develop the rest of the
+team, but you cannot grind beyond the next challenge.
 
 ### Gyms keep new team members usable
 
@@ -81,13 +80,6 @@ party trains up to that Gym's configured level. This is what makes the no-grind
 structure practical: a newly caught specialist or emergency replacement can
 join the active roster without hours of repetitive battling.
 
-The game really advances each Pokémon one level at a time behind a fade to
-black. It stays out of your way unless a Pokémon wants to learn a move or evolve,
-in which case the original decision and evolution scenes appear normally. The
-pass is consumed only if somebody can benefit. In Crystal and Emerald, the
-training represents three days spent at the Gym and advances the game's clock
-accordingly.
-
 EV-improving items also appear in every Poké Mart for one tenth of their normal
 price. This keeps team development available without requiring repetitive wild
 battles.
@@ -96,15 +88,11 @@ battles.
 
 A Pokémon that faints after battle is immediately retired to reserved PC boxes
 named **MEMORIAL**. You may inspect or release a Memorial Pokémon, but you cannot
-withdraw it or deposit another Pokémon into the protected boxes. If the
-Memorial is full, NuzLike refuses the retirement rather than deleting or
-partially moving anything.
+withdraw it or deposit another Pokémon into the protected boxes.
 
 A fallen teammate still leaves something behind. By default, the survivors
-divide 75% of all experience it earned above the current MIN. Eggs, fainted
-teammates, the lost Pokémon, and Pokémon already at MAX are ineligible, and any
-experience that cannot fit below the cap is lost. This helps a run continue
-after a death without removing the cost of losing a team member.
+divide 75% of all experience it earned above the current MIN. This helps a run
+continue after a death without removing the cost of losing a team member.
 
 A full-party wipe invalidates the run save, and the next attempt begins from the
 start. If you want a gentler experience, take an emulator save state after each
@@ -119,9 +107,23 @@ requiring a compatible party member; TEACH follows the original move-teaching
 flow. Badge, story, and location requirements still apply, so this cannot skip
 normal progression.
 
-This covers every field HM present in a supported game, including Cut, Fly,
-Surf, Strength, Flash, Whirlpool, Waterfall, Rock Smash, and Dive where
-applicable.
+### Side systems cannot become a second grind
+
+During the run, Day Care training and breeding, player-initiated Trainer
+rematches, gambling, renewable daily rewards, and berry planting are paused.
+Unsolicited phone calls where a Trainer challenges you still count. Rare Candies
+are still useful, but they obey the current cap. A Pokémon received above the
+cap keeps its actual level and waits there until the run catches up.
+
+The Game Corner coin desk remains useful without becoming an infinite-money
+loop: you can buy 50 coins for ₽1,000 or sell 50 for ₽500. In games that offer
+Pokémon prizes, you may choose exactly one for one coin; other prizes remain
+closed during the run. Emerald has no Pokémon prize counter, so its prize desks
+stay closed until the postgame.
+
+Trading remains enabled for custom multiplayer challenges. The game warns you
+every time you start a trade that importing Pokémon is cheating in a standard
+NuzLike run.
 
 ## Winning the run
 
