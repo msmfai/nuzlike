@@ -10,13 +10,13 @@ there are no game-specific application binaries.
 | --- | --- | --- |
 | Android | ARM64, x86-64 | split APKs |
 | Windows | ARM64, x86-64 | NSIS installer |
-| Linux | ARM64, x86-64 | Debian package and AppImage |
+| Linux | ARM64, x86-64 | Debian package |
 | macOS | Apple Silicon, Intel | application bundle and DMG |
 
-The GitHub Actions workflow builds on the matching native architecture. It
-uploads temporary workflow artifacts for review but does not publish a GitHub
-release. Publishing remains a separate, deliberate step after the owner
-playtest gate.
+The GitHub Actions workflow builds on the matching native architecture and
+uploads temporary workflow artifacts for review. A deliberately pushed version
+tag also publishes those same packages to a pre-release GitHub release after
+the source and recipe checks have passed.
 
 ## Local desktop build
 
