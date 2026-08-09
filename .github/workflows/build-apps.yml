@@ -42,11 +42,14 @@ jobs:
           - name: macOS Apple Silicon
             os: macos-15
             target: aarch64-apple-darwin
-            bundles: app,dmg
+            # The release artifact is a tarball of the native .app bundle.
+            # Avoid DMG creation here: Tauri's Finder/AppleScript DMG helper is
+            # unreliable on headless Intel runners and the DMG is redundant.
+            bundles: app
           - name: macOS Intel
             os: macos-15-intel
             target: x86_64-apple-darwin
-            bundles: app,dmg
+            bundles: app
           - name: Windows x86-64
             os: windows-latest
             target: x86_64-pc-windows-msvc
