@@ -15,10 +15,10 @@ jobs:
     name: Test public source and history
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - run: python -m unittest discover -s tests -v
@@ -28,19 +28,19 @@ jobs:
     name: Build pinned randomizer engine
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           repository: msmfai/nuzlike-randomizer-fvx
           ref: 849961023a4b39db31a996d0ca3a6afe4d3446cd
           path: .fvx-source
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
       - name: Build and test FVX bridge
         run: .fvx-source/gradlew -p .fvx-source :random:jar :random:nuzlikeBridgeTest
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: fvx-engine
           path: .fvx-source/random/build/libs/UPR-FVX.jar
@@ -83,16 +83,16 @@ jobs:
     timeout-minutes: 60
     needs: fvx-engine
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: fvx-engine
           path: .engine
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           # Temurin 17 is unavailable on GitHub's Windows ARM runner. FVX is
@@ -123,7 +123,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force release-assets | Out-Null
           Compress-Archive -Path "src-tauri/target/${{ matrix.target }}/release/bundle/*" -DestinationPath "release-assets/nuzlike-${{ matrix.target }}.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nuzlike-${{ matrix.target }}
           path: release-assets/*
@@ -147,16 +147,16 @@ jobs:
     timeout-minutes: 60
     needs: fvx-engine
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: fvx-engine
           path: .engine
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
@@ -179,7 +179,7 @@ jobs:
         run: |
           mkdir -p release-assets
           cp src-tauri/gen/android/app/build/outputs/apk/*/release/*.apk "release-assets/${{ matrix.artifact }}.apk"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: release-assets/*.apk
@@ -191,8 +191,8 @@ jobs:
     needs: [source-checks, desktop, android]
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: nuzlike-*
           path: release-assets
