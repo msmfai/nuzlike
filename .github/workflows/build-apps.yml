@@ -130,7 +130,7 @@ jobs:
       - name: Verify packaged macOS seal
         if: runner.os == 'macOS'
         shell: bash
-        run: tar -tzf "release-assets/nuzlike-${{ matrix.target }}.tar.gz" | grep -q '/_CodeSignature/CodeResources$'
+        run: tar -tzf "release-assets/nuzlike-${{ matrix.target }}.tar.gz" | grep -E '/_CodeSignature/CodeResources$' > /dev/null
       - name: Package Windows bundle
         if: runner.os == 'Windows'
         shell: pwsh
