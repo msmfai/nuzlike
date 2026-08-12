@@ -24,7 +24,7 @@ def parser() -> argparse.ArgumentParser:
     apply.add_argument(
         "--config",
         type=Path,
-        help="optional schema-1 JSON overrides for level caps and wipe mode",
+        help="optional schema-1 JSON overrides for level caps, EXP sharing, and debug switches",
     )
 
     inspect = commands.add_parser("inspect", help="print hashes for an owned input")

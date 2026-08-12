@@ -37,6 +37,32 @@ def parse_rom(value: str) -> tuple[str, Path]:
     return game, Path(path)
 
 
+def discover_roms(directory: Path, accepted: dict[str, str]) -> dict[str, Path]:
+    """Identify canonical inputs by content without trusting their filenames."""
+    by_sha1 = {digest.lower(): game for game, digest in accepted.items()}
+    discovered: dict[str, Path] = {}
+    for path in sorted(directory.rglob("*")):
+        if not path.is_file() or path.is_symlink():
+            continue
+        try:
+            data = path.read_bytes()
+        except OSError:
+            continue
+        candidates = [hashlib.sha1(data).hexdigest()]
+        if len(data) > 512:
+            candidates.append(hashlib.sha1(data[512:]).hexdigest())
+        game = next((by_sha1[value] for value in candidates if value in by_sha1), None)
+        if game is None:
+            continue
+        if game in discovered:
+            raise PatchError(
+                f"multiple canonical inputs found for {game}: "
+                f"{discovered[game]} and {path}"
+            )
+        discovered[game] = path
+    return discovered
+
+
 def generation(game: str) -> int:
     if game in {"red", "blue", "yellow"}:
         return 1
@@ -75,21 +101,33 @@ def verify_game(
 ) -> dict[str, object]:
     recipe_path = root / "recipes" / f"{game}.json"
     recipe = load_recipe(recipe_path)
-    supplied_sha1 = hashlib.sha1(rom.read_bytes()).hexdigest()
-    if supplied_sha1 not in {value.lower() for value in recipe["accepted_sha1"]}:
+    supplied = rom.read_bytes()
+    accepted = {value.lower() for value in recipe["accepted_sha1"]}
+    supplied_sha1 = hashlib.sha1(supplied).hexdigest()
+    normalization = "none"
+    if supplied_sha1 not in accepted and len(supplied) > 512:
+        normalized = supplied[512:]
+        normalized_sha1 = hashlib.sha1(normalized).hexdigest()
+        if normalized_sha1 in accepted:
+            supplied = normalized
+            supplied_sha1 = normalized_sha1
+            normalization = "removed-512-byte-copier-header"
+    if supplied_sha1 not in accepted:
         raise PatchError(f"{game}: clean ROM SHA-1 is not accepted by its public recipe")
 
     with tempfile.TemporaryDirectory(prefix=f"nuzlike-{game}-") as temporary:
         work = Path(temporary)
+        clean = work / f"{game}-clean.{extension(game)}"
+        clean.write_bytes(supplied)
         nuzlike = work / f"{game}-nuzlike.{extension(game)}"
-        apply_recipe(rom, recipe_path, nuzlike)
+        apply_recipe(clean, recipe_path, nuzlike)
         randomized_runs: list[tuple[Path, Path, Path, Path, Path]] = []
         for run in ("a", "b"):
             randomized = work / f"{game}-{run}-randomized.{extension(game)}"
             manifest, log = run_fvx(
                 java=java,
                 jar=jar,
-                rom=rom,
+                rom=clean,
                 output=randomized,
                 seed=seed,
                 settings=SETTINGS[generation(game)],
@@ -133,6 +171,7 @@ def verify_game(
         return {
             "game": game,
             "clean_sha1": supplied_sha1,
+            "input_normalization": normalization,
             "fvx_sha256": digest(randomized_runs[0][0]),
             "nuzlike_sha256": digest(nuzlike),
             "combined_sha256": digest(randomized_runs[0][3]),
@@ -148,21 +187,40 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--seed", default="42")
     result.add_argument("--require-all", action="store_true")
     result.add_argument(
-        "--rom", action="append", required=True, type=parse_rom,
+        "--rom-dir", type=Path,
+        help="discover supported clean ROMs by content beneath this private directory",
+    )
+    result.add_argument(
+        "--rom", action="append", default=[], type=parse_rom,
         metavar="GAME=PATH", help="repeat once for each supported clean owned ROM",
     )
     return result
 
 
 def main() -> int:
-    arguments = parser().parse_args()
+    argument_parser = parser()
+    arguments = argument_parser.parse_args()
     root = SOURCE_ROOT
     supplied = dict(arguments.rom)
+    try:
+        if arguments.rom_dir is not None:
+            manifest = json.loads((root / "recipes/manifest.json").read_text(encoding="utf-8"))
+            for game, path in discover_roms(
+                arguments.rom_dir, manifest["canonical_inputs"]
+            ).items():
+                if game in supplied:
+                    argument_parser.error(
+                        f"{game} was supplied both explicitly and through --rom-dir"
+                    )
+                supplied[game] = path
+    except (OSError, PatchError, json.JSONDecodeError) as error:
+        print(f"randomizer input discovery failed: {error}", file=sys.stderr)
+        return 2
     requested = set(supplied)
     if arguments.require_all and requested != set(GAMES):
-        parser().error("--require-all needs one ROM for every supported game")
+        argument_parser.error("--require-all needs one ROM for every supported game")
     if not requested:
-        parser().error("at least one --rom is required")
+        argument_parser.error("supply at least one --rom or --rom-dir")
     try:
         reports = [
             verify_game(

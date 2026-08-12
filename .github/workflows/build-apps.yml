@@ -11,6 +11,19 @@ permissions:
   contents: write
 
 jobs:
+  source-checks:
+    name: Test public source and history
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m unittest discover -s tests -v
+      - run: python tools/release_audit.py --tree . --history
+
   fvx-engine:
     name: Build pinned randomizer engine
     runs-on: ubuntu-22.04
@@ -175,19 +188,23 @@ jobs:
   release:
     name: Publish tagged binaries
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [desktop, android]
+    needs: [source-checks, desktop, android]
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           pattern: nuzlike-*
           path: release-assets
           merge-multiple: true
-      - name: Create pre-alpha release if needed
+      - name: Write package checksums
+        working-directory: release-assets
+        run: sha256sum nuzlike-* > SHA256SUMS
+      - name: Create alpha release if needed
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          gh release view "$TAG" --repo "$REPOSITORY" || gh release create "$TAG" --repo "$REPOSITORY" --prerelease --title "[Pre-Alpha] NuzLike $TAG" --notes "Pre-alpha build. This release is incomplete and may softlock; keep backups of your saves. Includes the combined FVX randomizer and NuzLike patcher for every supported game."
+          gh release view "$TAG" --repo "$REPOSITORY" || gh release create "$TAG" --repo "$REPOSITORY" --prerelease --title "[Alpha] NuzLike $TAG" --notes-file RELEASE_NOTES.md
           gh release upload "$TAG" release-assets/* --repo "$REPOSITORY" --clobber
