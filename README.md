@@ -9,8 +9,9 @@ The game enforces the rules for you, so there is no encounter spreadsheet or
 manual level-cap tracking.
 
 > [!WARNING]
-> NuzLike is alpha software. Keep your original game backup untouched, patch to
-> a new file, and use a separate save you are prepared to lose.
+> NuzLike is alpha software. Not all features are tested, so please be prepared
+> to lose save games. All GitHub issues are appreciated and will be dealt with
+> promptly.
 
 ## What changes
 
