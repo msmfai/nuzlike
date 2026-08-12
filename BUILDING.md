@@ -19,6 +19,9 @@ tag also publishes those same packages to a pre-release GitHub release after
 the source and recipe checks have passed. Tagged releases include a
 `SHA256SUMS` file covering every package.
 
+macOS bundles are ad-hoc sealed after assembly and must pass strict `codesign`
+verification before packaging. They are not Developer ID signed or notarized.
+
 ## Local desktop build
 
 Install Node.js 24, stable Rust, and the system prerequisites for Tauri 2, then:

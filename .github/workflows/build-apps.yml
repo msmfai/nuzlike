@@ -111,12 +111,26 @@ jobs:
         run: python tools/prepare_desktop_fvx.py --jar .engine/UPR-FVX.jar
       - name: Build native package
         run: npm run build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Seal and verify macOS application bundle
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          app_root="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          app_path="$(find "$app_root" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          test -n "$app_path"
+          codesign --force --deep --sign - --timestamp=none "$app_path"
+          codesign --verify --deep --strict --verbose=4 "$app_path"
+          test -s "$app_path/Contents/_CodeSignature/CodeResources"
       - name: Package Unix bundle
         if: runner.os != 'Windows'
         shell: bash
         run: |
           mkdir -p release-assets
           tar -czf "release-assets/nuzlike-${{ matrix.target }}.tar.gz" -C "src-tauri/target/${{ matrix.target }}/release/bundle" .
+      - name: Verify packaged macOS seal
+        if: runner.os == 'macOS'
+        shell: bash
+        run: tar -tzf "release-assets/nuzlike-${{ matrix.target }}.tar.gz" | grep -q '/_CodeSignature/CodeResources$'
       - name: Package Windows bundle
         if: runner.os == 'Windows'
         shell: pwsh
