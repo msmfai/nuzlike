@@ -47,6 +47,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertIn("sha256sum nuzlike-* > SHA256SUMS", workflow)
         self.assertIn("--notes-file RELEASE_NOTES.md", workflow)
         self.assertIn("[Alpha] NuzLike", workflow)
+        self.assertIn("--prerelease=false --latest", workflow)
         self.assertIn("needs: [source-checks, desktop, android]", workflow)
         self.assertIn("python tools/release_audit.py --tree . --history", workflow)
         self.assertIn("codesign --force --deep --sign - --timestamp=none", workflow)
