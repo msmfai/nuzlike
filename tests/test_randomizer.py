@@ -17,6 +17,7 @@ from nuzlike_patcher import (
     load_recipe,
     recipe_write_ranges,
 )
+from tools.verify_randomizer_matrix import discover_roms
 
 
 class RandomizerIntegrationTests(unittest.TestCase):
@@ -32,6 +33,33 @@ class RandomizerIntegrationTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
+
+    def test_private_rom_directory_discovery_uses_content_and_accepts_headers(self) -> None:
+        directory = self.root / "owned"
+        directory.mkdir()
+        red = b"red-canonical-test"
+        crystal = b"crystal-canonical-test"
+        red_path = directory / "unhelpful-name.dat"
+        crystal_path = directory / "headered-copy.gbc"
+        ignored = directory / "unrecognized.gba"
+        red_path.write_bytes(red)
+        crystal_path.write_bytes(bytes(512) + crystal)
+        ignored.write_bytes(b"not a supported input")
+
+        found = discover_roms(directory, {
+            "red": hashlib.sha1(red).hexdigest(),
+            "crystal": hashlib.sha1(crystal).hexdigest(),
+        })
+        self.assertEqual(found, {"red": red_path, "crystal": crystal_path})
+
+    def test_private_rom_directory_discovery_rejects_duplicates(self) -> None:
+        directory = self.root / "owned"
+        directory.mkdir()
+        data = b"same-canonical-input"
+        (directory / "first.gbc").write_bytes(data)
+        (directory / "second.gbc").write_bytes(data)
+        with self.assertRaisesRegex(PatchError, "multiple canonical inputs"):
+            discover_roms(directory, {"crystal": hashlib.sha1(data).hexdigest()})
 
     def write_recipe(self, *, offset: int = 700) -> None:
         recipe = {

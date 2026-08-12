@@ -30,7 +30,7 @@ FORBIDDEN_TEXT = (
 ALLOWED_ROOTS = {
     ".github", "branding", "configs", "nuzlike_patcher", "recipes",
     "src-tauri", "tests", "tools", "ui", ".gitignore", "BUILDING.md",
-    "LICENSE", "README.md", "VERSION", "index.html", "package-lock.json",
+    "LICENSE", "README.md", "RELEASE_NOTES.md", "TESTING.md", "VERSION", "index.html", "package-lock.json",
     "package.json", "pyproject.toml", "tsconfig.json", "vite.config.ts",
 }
 GPL_MARKERS = (
