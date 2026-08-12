@@ -220,5 +220,6 @@ jobs:
           TAG: ${{ github.ref_name }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          gh release view "$TAG" --repo "$REPOSITORY" || gh release create "$TAG" --repo "$REPOSITORY" --prerelease --title "[Alpha] NuzLike $TAG" --notes-file RELEASE_NOTES.md
+          gh release view "$TAG" --repo "$REPOSITORY" || gh release create "$TAG" --repo "$REPOSITORY" --title "[Alpha] NuzLike $TAG" --notes-file RELEASE_NOTES.md
+          gh release edit "$TAG" --repo "$REPOSITORY" --prerelease=false --latest
           gh release upload "$TAG" release-assets/* --repo "$REPOSITORY" --clobber
