@@ -1,6 +1,10 @@
-# NuzLike alpha 1
+# NuzLike alpha 2
 
-This is the first alpha release of the unified NuzLike patcher. It supports
+This alpha release fixes malformed macOS application bundles from alpha 1. The
+macOS packages are now explicitly sealed and must pass strict bundle validation
+before they can be published.
+
+The unified NuzLike patcher supports
 Pokémon Red, Blue, Yellow, Crystal, Emerald, FireRed, and LeafGreen, with
 optional Universal Pokémon Randomizer FVX settings-string composition.
 
@@ -17,5 +21,6 @@ untouched, create a new patched file, and use a separate save you are prepared
 to lose. Randomizer combinations, uncommon emulators, and original hardware may
 still expose progression blockers or presentation defects.
 
-Packages may be unsigned. Verify downloads with the accompanying `SHA256SUMS`
-file and consult the README for the exact supported game revisions.
+Packages are not yet signed by platform distribution identities or notarized.
+Verify downloads with the accompanying `SHA256SUMS` file and consult the README
+for the exact supported game revisions.

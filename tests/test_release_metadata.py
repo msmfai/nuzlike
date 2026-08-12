@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ALPHA_VERSION = "0.1.0-alpha.1"
+ALPHA_VERSION = "0.1.0-alpha.2"
 
 
 class ReleaseMetadataTests(unittest.TestCase):
@@ -28,7 +28,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertEqual(package_lock["packages"][""]["version"], ALPHA_VERSION)
         self.assertEqual(cargo["package"]["version"], ALPHA_VERSION)
         self.assertEqual(tauri["version"], ALPHA_VERSION)
-        self.assertEqual(python["project"]["version"], "0.1.0a1")
+        self.assertEqual(python["project"]["version"], "0.1.0a2")
         self.assertIn(f'__version__ = "{ALPHA_VERSION}"', init)
 
     def test_release_workflow_builds_the_declared_matrix_and_checksums_it(self) -> None:
@@ -49,6 +49,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertIn("[Alpha] NuzLike", workflow)
         self.assertIn("needs: [source-checks, desktop, android]", workflow)
         self.assertIn("python tools/release_audit.py --tree . --history", workflow)
+        self.assertIn("codesign --force --deep --sign - --timestamp=none", workflow)
+        self.assertIn("codesign --verify --deep --strict", workflow)
+        self.assertIn("Contents/_CodeSignature/CodeResources", workflow)
+        self.assertIn("Verify packaged macOS seal", workflow)
 
     def test_local_document_links_resolve(self) -> None:
         failures: list[str] = []

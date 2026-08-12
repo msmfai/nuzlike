@@ -61,9 +61,10 @@ speculatively.
 3. Choose a level-cap preset or customise the caps.
 4. Save the patched game as a new file and begin a fresh save.
 
-The original backup is never edited in place. Alpha packages may be unsigned,
-so your operating system may ask you to approve the application. Source build
-instructions are in [BUILDING.md](BUILDING.md).
+The original backup is never edited in place. Alpha packages are not yet signed
+by platform distribution identities or notarized, so your operating system may
+ask you to approve the application. Source build instructions are in
+[BUILDING.md](BUILDING.md).
 
 ## Randomized runs
 
