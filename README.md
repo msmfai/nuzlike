@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/juno-logo.png" alt="Juno logo" width="720">
+</p>
+
 # NuzLike
 
 NuzLike is a roguelite twist on the Nuzlocke format for players who enjoy the
