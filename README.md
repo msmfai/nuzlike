@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/juno-logo.png" alt="Juno logo" width="720">
-</p>
-
 # NuzLike
 
 NuzLike is a roguelite twist on the Nuzlocke format for players who enjoy the
@@ -20,12 +16,17 @@ manual level-cap tracking.
 ## What changes
 
 - Each area gives you one wild encounter, with uncaught species prioritised.
-- Wild Pokémon give no EXP. Trainers are the finite source of experience, and
-  boss-based level caps prevent overlevelling.
-- Gym Passes let you bring replacement party members up to a useful level
-  without grinding.
-- Fainted Pokémon are retired to the PC Memorial. A full-party wipe ends the
-  run.
+- Wild Pokémon give no EXP. Trainers are the finite source of experience.
+- Each boss has a level cap that prevents your Pokémon from gaining further
+  levels until that boss is defeated.
+- When a Pokémon at the cap earns Trainer EXP, capped-EXP sharing distributes a
+  configurable percentage of that blocked EXP among conscious, non-Egg
+  teammates below the cap.
+- Gym Passes are consumable items sold in Poké Marts. Using one inside a defeated
+  Gym trains under-levelled party members up to that Gym's level cap.
+- Fainted Pokémon are retired permanently to the PC Memorial, a dedicated
+  storage box from which they cannot be withdrawn. A full-party wipe ends the
+  run and deletes its save.
 - Repeatable side activities are restricted during the run so the best use of
   your time is continuing the story and fighting Trainers.
 - Becoming Champion ends the challenge restrictions while keeping the useful
@@ -65,9 +66,11 @@ speculatively.
 3. Choose a level-cap preset or customise the caps.
 4. Save the patched game as a new file and begin a fresh save.
 
-The original backup is never edited in place. Alpha packages are not yet signed
-by platform distribution identities or notarized, so your operating system may
-ask you to approve the application. Source build instructions are in
+The patcher does not change the original game backup you select. It saves the
+NuzLike version as a separate file. Alpha packages are not yet signed by
+platform distribution identities or notarized, so your operating system may ask
+you to approve the application. This is because the application is unknown and
+does not mean this project is a virus. Source build instructions are in
 [BUILDING.md](BUILDING.md).
 
 ## Randomized runs
@@ -100,3 +103,7 @@ contains no games and grants no rights to third-party material.
 
 NuzLike is an unofficial fan project and is not affiliated with or endorsed by
 Nintendo, Game Freak, Creatures, or The Pokémon Company.
+
+<p align="center">
+  <img src="assets/juno-logo.png" alt="Juno logo" width="720">
+</p>
