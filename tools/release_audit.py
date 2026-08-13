@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import subprocess
 import sys
@@ -28,10 +29,13 @@ FORBIDDEN_TEXT = (
     "BEGIN PRIVATE" + " KEY",
 )
 ALLOWED_ROOTS = {
-    ".github", "branding", "configs", "nuzlike_patcher", "recipes",
+    ".github", "assets", "branding", "configs", "nuzlike_patcher", "recipes",
     "src-tauri", "tests", "tools", "ui", ".gitignore", "BUILDING.md",
     "LICENSE", "README.md", "RELEASE_NOTES.md", "TESTING.md", "VERSION", "index.html", "package-lock.json",
     "package.json", "pyproject.toml", "tsconfig.json", "vite.config.ts",
+}
+ALLOWED_BINARY_ASSETS = {
+    Path("assets/juno-logo.png"): "771286cb1173c678d0d6cbaac45653e66d732c92cbc66bb977c8850c6b1e2c95",
 }
 GPL_MARKERS = (
     "GNU GENERAL PUBLIC LICENSE",
@@ -172,7 +176,21 @@ def tracked_history(root: Path) -> list[str]:
     for line in result.stdout.splitlines():
         parts = line.split(" ", 1)
         if len(parts) == 2:
+            object_id = parts[0]
             path = Path(parts[1])
+            if any(path in allowed.parents for allowed in ALLOWED_BINARY_ASSETS):
+                continue
+            allowed_digest = ALLOWED_BINARY_ASSETS.get(path)
+            if allowed_digest is not None:
+                blob = subprocess.run(
+                    ["git", "cat-file", "blob", object_id],
+                    cwd=root,
+                    capture_output=True,
+                    check=False,
+                )
+                if blob.returncode or hashlib.sha256(blob.stdout).hexdigest() != allowed_digest:
+                    failures.append(f"unapproved binary asset in Git history: {path}")
+                continue
             if path.suffix.lower() in FORBIDDEN_SUFFIXES:
                 failures.append(f"forbidden file in Git history: {path}")
             if FORBIDDEN_PARTS.intersection(part.lower() for part in path.parts):
@@ -189,6 +207,11 @@ def audit(root: Path, include_history: bool) -> list[str]:
             failures.append(f"symlink is not allowed: {relative}")
             continue
         if not path.is_file():
+            continue
+        allowed_digest = ALLOWED_BINARY_ASSETS.get(relative)
+        if allowed_digest is not None:
+            if hashlib.sha256(path.read_bytes()).hexdigest() != allowed_digest:
+                failures.append(f"binary asset does not match its approved digest: {relative}")
             continue
         if relative.parts[0] not in ALLOWED_ROOTS:
             failures.append(f"unexpected public root: {relative}")

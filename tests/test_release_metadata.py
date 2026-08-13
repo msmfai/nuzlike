@@ -68,5 +68,15 @@ class ReleaseMetadataTests(unittest.TestCase):
                     failures.append(f"{relative}: {target}")
         self.assertEqual(failures, [])
 
+    def test_public_logo_is_an_exact_audited_asset(self) -> None:
+        audit = (ROOT / "tools/release_audit.py").read_text(encoding="utf-8")
+        self.assertIn("assets/juno-logo.png", audit)
+        self.assertIn(
+            "771286cb1173c678d0d6cbaac45653e66d732c92cbc66bb977c8850c6b1e2c95",
+            audit,
+        )
+        self.assertIn("binary asset does not match its approved digest", audit)
+        self.assertIn("unapproved binary asset in Git history", audit)
+
 if __name__ == "__main__":
     unittest.main()
