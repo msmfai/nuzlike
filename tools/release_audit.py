@@ -29,7 +29,7 @@ FORBIDDEN_TEXT = (
     "BEGIN PRIVATE" + " KEY",
 )
 ALLOWED_ROOTS = {
-    ".github", "assets", "branding", "configs", "nuzlike_patcher", "recipes",
+    ".github", "analysis", "assets", "branding", "configs", "nuzlike_patcher", "recipes",
     "src-tauri", "tests", "tools", "ui", ".gitignore", "BUILDING.md",
     "LICENSE", "README.md", "RELEASE_NOTES.md", "TESTING.md", "VERSION", "index.html", "package-lock.json",
     "package.json", "pyproject.toml", "tsconfig.json", "vite.config.ts",
