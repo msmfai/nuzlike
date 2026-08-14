@@ -75,6 +75,11 @@ class ReleaseMetadataTests(unittest.TestCase):
             "771286cb1173c678d0d6cbaac45653e66d732c92cbc66bb977c8850c6b1e2c95",
             audit,
         )
+        self.assertIn("branding/github-card.png", audit)
+        self.assertIn(
+            "3ef32fc5fd70e1d0cb3d524e2c94dfc5935852c553e3f2d341dcb9c810ed0d7d",
+            audit,
+        )
         self.assertIn("binary asset does not match its approved digest", audit)
         self.assertIn("unapproved binary asset in Git history", audit)
 
