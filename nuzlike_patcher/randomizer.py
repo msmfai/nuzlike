@@ -343,6 +343,13 @@ def recipe_write_ranges(recipe: dict[str, Any]) -> list[tuple[int, int]]:
             entry = configurable.get(name)
             if entry is not None:
                 ranges.append((entry["offset"], entry["offset"] + 1))
+    chapter_xp = recipe.get("emerald_chapter_xp")
+    if chapter_xp is not None:
+        size = 8 * 101 * 4
+        ranges.extend(
+            (chapter_xp[name], chapter_xp[name] + size)
+            for name in ("production_offset", "debug_offset")
+        )
     if recipe["game"] in {"red", "blue", "yellow", "crystal"}:
         ranges.append((0x14E, 0x150))
     return _merge_ranges(ranges)

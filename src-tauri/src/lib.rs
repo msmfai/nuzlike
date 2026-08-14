@@ -3,6 +3,7 @@
 // Copyright (C) 2026 NuzLike contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 mod fvx;
+mod emerald_curve;
 mod patcher;
 mod randomizer;
 

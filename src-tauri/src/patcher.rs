@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
 
+use crate::emerald_curve;
+
 const COPIER_HEADER_SIZE: usize = 512;
 
 #[derive(Debug, Deserialize)]
@@ -83,6 +85,18 @@ pub struct Configurable {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct EmeraldChapterXp {
+    schema: u8,
+    template: String,
+    production_offset: usize,
+    debug_offset: usize,
+    vanilla_offset: usize,
+    budgets: Vec<u32>,
+    family_growth_groups: Vec<Vec<u8>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Recipe {
     schema: u8,
     id: String,
@@ -103,6 +117,8 @@ pub struct Recipe {
     debug_variant: Option<PatchVariant>,
     #[serde(default)]
     randomizer_layout: Option<RandomizerLayout>,
+    #[serde(default)]
+    emerald_chapter_xp: Option<EmeraldChapterXp>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -421,6 +437,22 @@ pub fn parse_recipe(json: &str) -> Result<Recipe, String> {
             return Err("debug_variant debug flags are invalid".into());
         }
     }
+    if let Some(analysis) = &recipe.emerald_chapter_xp {
+        if recipe.game != "emerald"
+            || analysis.schema != 1
+            || analysis.template.is_empty()
+            || analysis.budgets.len() != 9
+            || analysis.family_growth_groups.len() != 9
+            || analysis.family_growth_groups.iter().any(|groups| {
+                groups.is_empty()
+                    || groups
+                        .iter()
+                        .any(|group| usize::from(*group) >= emerald_curve::GROWTH_GROUPS)
+            })
+        {
+            return Err("emerald_chapter_xp analysis inputs are invalid".into());
+        }
+    }
 
     let mut cap_ids = BTreeSet::new();
     let mut configurable_offsets = BTreeSet::new();
@@ -562,6 +594,14 @@ pub fn write_ranges(recipe: &Recipe) -> Result<Vec<(usize, usize)>, String> {
             variant.source_copy.as_ref(),
             &variant.configurable,
         )?;
+    }
+    if let Some(analysis) = &recipe.emerald_chapter_xp {
+        let size = emerald_curve::TABLE_BYTES;
+        ranges.push((
+            analysis.production_offset,
+            analysis.production_offset + size,
+        ));
+        ranges.push((analysis.debug_offset, analysis.debug_offset + size));
     }
     if matches!(recipe.game.as_str(), "red" | "blue" | "yellow" | "crystal") {
         ranges.push((0x14e, 0x150));
@@ -769,6 +809,48 @@ pub fn apply(
         }
         *generated = debug_mask;
         debug_flags_changed = debug_mask != site.default;
+    }
+
+    if let Some(analysis) = &recipe.emerald_chapter_xp {
+        const IDS: [&str; 9] = [
+            "roxanne",
+            "brawly",
+            "wattson",
+            "flannery",
+            "norman",
+            "winona",
+            "tate_and_liza",
+            "juan",
+            "champion",
+        ];
+        let mut caps = [0_u8; 9];
+        for (index, id) in IDS.iter().enumerate() {
+            let site = declared_caps
+                .get(id)
+                .ok_or_else(|| format!("Emerald chapter-XP recipe is missing cap {id}"))?;
+            caps[index] = cap_overrides
+                .and_then(|overrides| overrides.get(*id))
+                .copied()
+                .unwrap_or(site.default);
+        }
+        let vanilla = emerald_curve::read_tables(original, analysis.vanilla_offset)?;
+        let tables = emerald_curve::generate(
+            &vanilla,
+            &caps,
+            &analysis.budgets,
+            &analysis.family_growth_groups,
+        )?;
+        let offset = if debug_mask != 0 {
+            analysis.debug_offset
+        } else {
+            analysis.production_offset
+        };
+        let destination = output
+            .get_mut(offset..offset + tables.len())
+            .ok_or_else(|| {
+                "generated Emerald experience tables extend beyond the output".to_string()
+            })?;
+        destination.copy_from_slice(&tables);
     }
 
     repair_cartridge_checksum(&mut output, &recipe.game);
