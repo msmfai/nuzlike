@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 NuzLike contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Prove Python/Rust Emerald curve bytes match for an owned clean ROM."""
 
 from __future__ import annotations
