@@ -1,3 +1,5 @@
+![Pokémon Emerald displaying the message "But no one came..."](branding/github-card.png)
+
 # NuzLike
 
 NuzLike is a roguelite twist on the Nuzlocke format for players who enjoy the

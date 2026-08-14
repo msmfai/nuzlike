@@ -36,6 +36,7 @@ ALLOWED_ROOTS = {
 }
 ALLOWED_BINARY_ASSETS = {
     Path("assets/juno-logo.png"): "771286cb1173c678d0d6cbaac45653e66d732c92cbc66bb977c8850c6b1e2c95",
+    Path("branding/github-card.png"): "3ef32fc5fd70e1d0cb3d524e2c94dfc5935852c553e3f2d341dcb9c810ed0d7d",
 }
 GPL_MARKERS = (
     "GNU GENERAL PUBLIC LICENSE",
