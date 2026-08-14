@@ -100,7 +100,20 @@ pub struct Recipe {
     #[serde(default)]
     canonical_output_sha256: Option<String>,
     #[serde(default)]
+    debug_variant: Option<PatchVariant>,
+    #[serde(default)]
     randomizer_layout: Option<RandomizerLayout>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PatchVariant {
+    #[serde(default)]
+    writes: Vec<Write>,
+    #[serde(default)]
+    source_copy: Option<SourceCopyPatch>,
+    configurable: Configurable,
+    canonical_output_sha256: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -382,6 +395,32 @@ pub fn parse_recipe(json: &str) -> Result<Recipe, String> {
     if let Some(hash) = &recipe.canonical_output_sha256 {
         validate_hash(hash, 64, "canonical_output_sha256")?;
     }
+    if let Some(variant) = &recipe.debug_variant {
+        if variant.writes.is_empty() == variant.source_copy.is_none() {
+            return Err("debug_variant must contain writes or source_copy, but not both".into());
+        }
+        if let Some(patch) = &variant.source_copy {
+            if patch.encoding != "source-copy-v1" || patch.operations.is_empty() {
+                return Err("debug_variant.source_copy is invalid".into());
+            }
+        }
+        validate_hash(
+            &variant.canonical_output_sha256,
+            64,
+            "debug_variant.canonical_output_sha256",
+        )?;
+        let expected = BTreeMap::from([
+            ("disable_trainer_sight".to_string(), 4),
+            ("infinite_health".to_string(), 1),
+            ("maximum_damage".to_string(), 2),
+        ]);
+        let Some(site) = &variant.configurable.debug_flags else {
+            return Err("debug_variant must declare debug flags".into());
+        };
+        if site.default != 0 || site.flags != expected {
+            return Err("debug_variant debug flags are invalid".into());
+        }
+    }
 
     let mut cap_ids = BTreeSet::new();
     let mut configurable_offsets = BTreeSet::new();
@@ -453,54 +492,76 @@ pub fn parse_config(json: &str) -> Result<UserConfig, String> {
 
 pub fn write_ranges(recipe: &Recipe) -> Result<Vec<(usize, usize)>, String> {
     let mut ranges = Vec::new();
-    if let Some(patch) = &recipe.source_copy {
-        let mut cursor = 0_usize;
-        for (index, operation) in patch.operations.iter().enumerate() {
-            let label = format!("source_copy.operations[{index}]");
-            match (
-                operation.source_offset,
-                operation.length,
-                operation.xor_b64.as_deref(),
-                operation.xor_zlib_b64.as_deref(),
-            ) {
-                (Some(_), Some(length), None, None) => {
-                    cursor = cursor
-                        .checked_add(length)
-                        .ok_or_else(|| format!("{label} range overflows"))?
+    fn append_body_ranges(
+        ranges: &mut Vec<(usize, usize)>,
+        writes: &[Write],
+        source_copy: Option<&SourceCopyPatch>,
+        configurable: &Configurable,
+    ) -> Result<(), String> {
+        if let Some(patch) = source_copy {
+            let mut cursor = 0_usize;
+            for (index, operation) in patch.operations.iter().enumerate() {
+                let label = format!("source_copy.operations[{index}]");
+                match (
+                    operation.source_offset,
+                    operation.length,
+                    operation.xor_b64.as_deref(),
+                    operation.xor_zlib_b64.as_deref(),
+                ) {
+                    (Some(_), Some(length), None, None) => {
+                        cursor = cursor
+                            .checked_add(length)
+                            .ok_or_else(|| format!("{label} range overflows"))?
+                    }
+                    (None, None, Some(encoded), None) => {
+                        let length = BASE64
+                            .decode(encoded)
+                            .map_err(|error| format!("{label}.xor_b64 is invalid: {error}"))?
+                            .len();
+                        ranges.push((cursor, cursor + length));
+                        cursor += length;
+                    }
+                    (None, Some(length), None, Some(_)) => {
+                        ranges.push((cursor, cursor + length));
+                        cursor += length;
+                    }
+                    _ => return Err(format!("{label} has an unsupported operation shape")),
                 }
-                (None, None, Some(encoded), None) => {
-                    let length = BASE64
-                        .decode(encoded)
-                        .map_err(|error| format!("{label}.xor_b64 is invalid: {error}"))?
-                        .len();
-                    ranges.push((cursor, cursor + length));
-                    cursor += length;
-                }
-                (None, Some(length), None, Some(_)) => {
-                    ranges.push((cursor, cursor + length));
-                    cursor += length;
-                }
-                _ => return Err(format!("{label} has an unsupported operation shape")),
+            }
+        } else {
+            for (index, write) in writes.iter().enumerate() {
+                let length = parse_hex(
+                    &write.replacement_hex,
+                    &format!("writes[{index}].replacement_hex"),
+                )?
+                .len();
+                ranges.push((write.offset, write.offset + length));
             }
         }
-    } else {
-        for (index, write) in recipe.writes.iter().enumerate() {
-            let length = parse_hex(
-                &write.replacement_hex,
-                &format!("writes[{index}].replacement_hex"),
-            )?
-            .len();
-            ranges.push((write.offset, write.offset + length));
+        for site in &configurable.level_caps {
+            ranges.push((site.offset, site.offset + 1));
         }
+        if let Some(site) = &configurable.overflow_percent {
+            ranges.push((site.offset, site.offset + 1));
+        }
+        if let Some(site) = &configurable.debug_flags {
+            ranges.push((site.offset, site.offset + 1));
+        }
+        Ok(())
     }
-    for site in &recipe.configurable.level_caps {
-        ranges.push((site.offset, site.offset + 1));
-    }
-    if let Some(site) = &recipe.configurable.overflow_percent {
-        ranges.push((site.offset, site.offset + 1));
-    }
-    if let Some(site) = &recipe.configurable.debug_flags {
-        ranges.push((site.offset, site.offset + 1));
+    append_body_ranges(
+        &mut ranges,
+        &recipe.writes,
+        recipe.source_copy.as_ref(),
+        &recipe.configurable,
+    )?;
+    if let Some(variant) = &recipe.debug_variant {
+        append_body_ranges(
+            &mut ranges,
+            &variant.writes,
+            variant.source_copy.as_ref(),
+            &variant.configurable,
+        )?;
     }
     if matches!(recipe.game.as_str(), "red" | "blue" | "yellow" | "crystal") {
         ranges.push((0x14e, 0x150));
@@ -532,9 +593,29 @@ pub fn apply(
     {
         return Err(format!("config game must be {:?}", recipe.game));
     }
+    let debug = config.map(|value| value.debug.clone()).unwrap_or_default();
+    let debug_mask = debug.mask();
+    let (writes, source_copy, configurable, canonical_output_sha256) = if debug_mask != 0 {
+        let variant = recipe
+            .debug_variant
+            .as_ref()
+            .ok_or_else(|| "this recipe has no opt-in debug patch variant".to_string())?;
+        (
+            &variant.writes,
+            variant.source_copy.as_ref(),
+            &variant.configurable,
+            Some(&variant.canonical_output_sha256),
+        )
+    } else {
+        (
+            &recipe.writes,
+            recipe.source_copy.as_ref(),
+            &recipe.configurable,
+            recipe.canonical_output_sha256.as_ref(),
+        )
+    };
     let cap_overrides = config.map(|value| &value.level_caps);
-    let declared_caps = recipe
-        .configurable
+    let declared_caps = configurable
         .level_caps
         .iter()
         .map(|site| (site.id.as_str(), site))
@@ -553,13 +634,11 @@ pub fn apply(
         }
     }
     if config.and_then(|value| value.overflow_percent).is_some()
-        && recipe.configurable.overflow_percent.is_none()
+        && configurable.overflow_percent.is_none()
     {
         return Err("config contains overflow_percent but this recipe does not declare it".into());
     }
-    if config.is_some_and(|value| value.debug.mask() != 0)
-        && recipe.configurable.debug_flags.is_none()
-    {
+    if config.is_some_and(|value| value.debug.mask() != 0) && configurable.debug_flags.is_none() {
         return Err("config enables debug toggles but this recipe does not declare them".into());
     }
 
@@ -613,13 +692,13 @@ pub fn apply(
         )?;
     }
 
-    let mut output = if let Some(patch) = &recipe.source_copy {
+    let mut output = if let Some(patch) = source_copy {
         apply_source_copy(original, patch)?
     } else {
         original.to_vec()
     };
     let mut occupied = Vec::<(usize, usize)>::new();
-    for (index, write) in recipe.writes.iter().enumerate() {
+    for (index, write) in writes.iter().enumerate() {
         let label = format!("writes[{index}]");
         let end = check_region(original, write.offset, &write.expected_hex, &label)?;
         let replacement = parse_hex(&write.replacement_hex, &format!("{label}.replacement_hex"))?;
@@ -637,7 +716,7 @@ pub fn apply(
     }
 
     let mut effective_cap_overrides = BTreeMap::new();
-    for site in &recipe.configurable.level_caps {
+    for site in &configurable.level_caps {
         let generated = output
             .get_mut(site.offset)
             .ok_or_else(|| format!("configurable cap {} extends beyond the output", site.id))?;
@@ -659,7 +738,7 @@ pub fn apply(
 
     let mut overflow_percent = None;
     let mut overflow_percent_changed = false;
-    if let Some(site) = &recipe.configurable.overflow_percent {
+    if let Some(site) = &configurable.overflow_percent {
         let generated = output
             .get_mut(site.offset)
             .ok_or_else(|| "configurable overflow percent extends beyond the output".to_string())?;
@@ -677,10 +756,8 @@ pub fn apply(
         overflow_percent = Some(selected);
     }
 
-    let debug = config.map(|value| value.debug.clone()).unwrap_or_default();
-    let debug_mask = debug.mask();
     let mut debug_flags_changed = false;
-    if let Some(site) = &recipe.configurable.debug_flags {
+    if let Some(site) = &configurable.debug_flags {
         let generated = output
             .get_mut(site.offset)
             .ok_or_else(|| "configurable debug flags extend beyond the output".to_string())?;
@@ -701,7 +778,7 @@ pub fn apply(
         && effective_cap_overrides.is_empty()
         && !overflow_percent_changed
         && !debug_flags_changed
-        && let Some(expected) = &recipe.canonical_output_sha256
+        && let Some(expected) = canonical_output_sha256
         && !expected.eq_ignore_ascii_case(&output_sha256)
     {
         return Err(format!(
@@ -723,10 +800,7 @@ pub fn apply(
             .into(),
             input_normalization: input_normalization.into(),
             output_sha256,
-            writes: recipe
-                .source_copy
-                .as_ref()
-                .map_or(recipe.writes.len(), |patch| patch.operations.len()),
+            writes: source_copy.map_or(writes.len(), |patch| patch.operations.len()),
             level_cap_overrides: effective_cap_overrides,
             overflow_percent,
             debug,
@@ -771,6 +845,32 @@ mod tests {
                         "disable_trainer_sight": 4
                     }
                 }
+            },
+            "debug_variant": {
+                "writes": [{
+                    "offset": 16,
+                    "expected_hex": "10111213",
+                    "replacement_hex": "b0b1b2b3"
+                }],
+                "configurable": {
+                    "level_caps": [
+                        {"id": "brock", "offset": 20, "default": 20},
+                        {"id": "misty", "offset": 21, "default": 21}
+                    ],
+                    "overflow_percent": {
+                        "offset": 23, "default": 75, "minimum": 0, "maximum": 100
+                    },
+                    "debug_flags": {
+                        "offset": 22,
+                        "default": 0,
+                        "flags": {
+                            "infinite_health": 1,
+                            "maximum_damage": 2,
+                            "disable_trainer_sight": 4
+                        }
+                    }
+                },
+                "canonical_output_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
             }
         });
         (data, recipe.to_string())
@@ -790,7 +890,7 @@ mod tests {
         .unwrap();
         let result = apply(&recipe, Some(&config), &data).unwrap();
         let mut expected = data;
-        expected[16..20].copy_from_slice(&[0xa0, 0xa1, 0xa2, 0xa3]);
+        expected[16..20].copy_from_slice(&[0xb0, 0xb1, 0xb2, 0xb3]);
         expected[20] = 13;
         expected[21] = 20;
         expected[22] = 5;

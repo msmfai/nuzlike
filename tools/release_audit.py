@@ -50,12 +50,9 @@ MAX_TRANSFORMED_BYTES = 2 * 1024 * 1024
 MAX_TRANSFORMED_FRACTION = 0.10
 
 
-def validate_recipe(path: Path, data: object) -> list[str]:
-    relative = path.as_posix()
-    if not isinstance(data, dict) or data.get("schema") != 1:
-        return [f"recipe has an invalid schema: {relative}"]
-    writes = data.get("writes", [])
-    source_copy = data.get("source_copy")
+def validate_patch_body(relative: str, body: dict[str, object]) -> list[str]:
+    writes = body.get("writes", [])
+    source_copy = body.get("source_copy")
     if bool(writes) == bool(source_copy):
         return [f"recipe must contain exactly one patch body: {relative}"]
     failures: list[str] = []
@@ -147,6 +144,20 @@ def validate_recipe(path: Path, data: object) -> list[str]:
         failures.append(f"source_copy transformed-byte declaration is wrong: {relative}")
     if transformed > MAX_TRANSFORMED_BYTES or transformed > output_size * MAX_TRANSFORMED_FRACTION:
         failures.append(f"source_copy transforms too much of the input: {relative}")
+    return failures
+
+
+def validate_recipe(path: Path, data: object) -> list[str]:
+    relative = path.as_posix()
+    if not isinstance(data, dict) or data.get("schema") != 1:
+        return [f"recipe has an invalid schema: {relative}"]
+    failures = validate_patch_body(relative, data)
+    debug_variant = data.get("debug_variant")
+    if debug_variant is not None:
+        if not isinstance(debug_variant, dict):
+            failures.append(f"debug variant is not an object: {relative}")
+        else:
+            failures.extend(validate_patch_body(f"{relative} debug_variant", debug_variant))
     return failures
 
 

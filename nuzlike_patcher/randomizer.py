@@ -312,34 +312,37 @@ def _merge_ranges(ranges: Iterable[tuple[int, int]]) -> list[tuple[int, int]]:
 def recipe_write_ranges(recipe: dict[str, Any]) -> list[tuple[int, int]]:
     """Resolve every byte range NuzLike may mutate for collision checks."""
     ranges: list[tuple[int, int]] = []
-    source_copy = recipe.get("source_copy")
-    if source_copy is not None:
-        cursor = 0
-        for index, operation in enumerate(source_copy["operations"]):
-            if "source_offset" in operation:
-                cursor += operation["length"]
-                continue
-            try:
-                field = "xor_b64" if "xor_b64" in operation else "xor_zlib_b64"
-                delta = base64.b64decode(operation[field], validate=True)
-                if field == "xor_zlib_b64":
-                    delta = zlib.decompress(delta)
-            except (KeyError, ValueError, zlib.error) as error:
-                raise PatchError(f"invalid source_copy operation {index}: {error}") from error
-            ranges.append((cursor, cursor + len(delta)))
-            cursor += len(delta)
-    else:
-        for write in recipe["writes"]:
-            start = write["offset"]
-            ranges.append((start, start + len(bytes.fromhex(write["replacement_hex"]))))
+    for body in (recipe, recipe.get("debug_variant")):
+        if body is None:
+            continue
+        source_copy = body.get("source_copy")
+        if source_copy is not None:
+            cursor = 0
+            for index, operation in enumerate(source_copy["operations"]):
+                if "source_offset" in operation:
+                    cursor += operation["length"]
+                    continue
+                try:
+                    field = "xor_b64" if "xor_b64" in operation else "xor_zlib_b64"
+                    delta = base64.b64decode(operation[field], validate=True)
+                    if field == "xor_zlib_b64":
+                        delta = zlib.decompress(delta)
+                except (KeyError, ValueError, zlib.error) as error:
+                    raise PatchError(f"invalid source_copy operation {index}: {error}") from error
+                ranges.append((cursor, cursor + len(delta)))
+                cursor += len(delta)
+        else:
+            for write in body["writes"]:
+                start = write["offset"]
+                ranges.append((start, start + len(bytes.fromhex(write["replacement_hex"]))))
 
-    configurable = recipe.get("configurable", {})
-    for cap in configurable.get("level_caps", []):
-        ranges.append((cap["offset"], cap["offset"] + 1))
-    for name in ("overflow_percent", "debug_flags"):
-        entry = configurable.get(name)
-        if entry is not None:
-            ranges.append((entry["offset"], entry["offset"] + 1))
+        configurable = body.get("configurable", {})
+        for cap in configurable.get("level_caps", []):
+            ranges.append((cap["offset"], cap["offset"] + 1))
+        for name in ("overflow_percent", "debug_flags"):
+            entry = configurable.get(name)
+            if entry is not None:
+                ranges.append((entry["offset"], entry["offset"] + 1))
     if recipe["game"] in {"red", "blue", "yellow", "crystal"}:
         ranges.append((0x14E, 0x150))
     return _merge_ranges(ranges)
