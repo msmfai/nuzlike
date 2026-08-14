@@ -140,6 +140,41 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         }
         if debug_flags.get("default") != 0 or debug_flags.get("flags") != expected_flags:
             raise PatchError("configurable.debug_flags must declare the supported flags with default 0")
+    debug_variant = recipe.get("debug_variant")
+    if debug_variant is not None:
+        if not isinstance(debug_variant, dict):
+            raise PatchError("debug_variant must be an object")
+        allowed = {"writes", "source_copy", "configurable", "canonical_output_sha256"}
+        if set(debug_variant) - allowed or not {"writes", "configurable"} <= set(debug_variant):
+            raise PatchError("debug_variant has unsupported or missing fields")
+        if not isinstance(debug_variant["writes"], list):
+            raise PatchError("debug_variant.writes must be a list")
+        variant_source_copy = debug_variant.get("source_copy")
+        if variant_source_copy is not None:
+            if (
+                not isinstance(variant_source_copy, dict)
+                or set(variant_source_copy) != {"encoding", "output_size", "literal_bytes", "operations"}
+                or variant_source_copy.get("encoding") != "source-copy-v1"
+                or not isinstance(variant_source_copy.get("operations"), list)
+                or not variant_source_copy["operations"]
+            ):
+                raise PatchError("debug_variant.source_copy is invalid")
+            _offset(variant_source_copy.get("output_size"), "debug_variant.source_copy.output_size")
+            _offset(variant_source_copy.get("literal_bytes"), "debug_variant.source_copy.literal_bytes")
+        if bool(debug_variant["writes"]) == bool(variant_source_copy):
+            raise PatchError("debug_variant must contain writes or source_copy, but not both")
+        if not isinstance(debug_variant["configurable"], dict):
+            raise PatchError("debug_variant.configurable must be an object")
+        variant_debug = debug_variant["configurable"].get("debug_flags")
+        if (
+            not isinstance(variant_debug, dict)
+            or variant_debug.get("default") != 0
+            or variant_debug.get("flags") != expected_flags
+        ):
+            raise PatchError("debug_variant must declare the supported debug flags")
+        canonical_hash = debug_variant.get("canonical_output_sha256")
+        if not isinstance(canonical_hash, str) or len(canonical_hash) != 64:
+            raise PatchError("debug_variant.canonical_output_sha256 must be a SHA-256 string")
     return recipe
 
 
@@ -355,6 +390,21 @@ def apply_recipe(
     enabled_debug = [name for name, enabled in config["debug"].items() if enabled]
     if enabled_debug and debug_entry is None:
         raise PatchError("config enables debug toggles but this recipe does not declare them")
+    patch = recipe.get("debug_variant") if enabled_debug else recipe
+    if enabled_debug and patch is None:
+        raise PatchError("this recipe has no opt-in debug patch variant")
+    patch_configurable = patch.get("configurable", {})
+    declared_caps = {
+        entry["id"]: entry for entry in patch_configurable.get("level_caps", [])
+    }
+    unknown_caps = set(cap_overrides) - set(declared_caps)
+    if unknown_caps:
+        raise PatchError(
+            "config contains caps not declared by the selected patch variant: "
+            + ", ".join(sorted(unknown_caps))
+        )
+    overflow_entry = patch_configurable.get("overflow_percent")
+    debug_entry = patch_configurable.get("debug_flags")
     input_sha1 = _digest("sha1", original)
     canonical = input_sha1.lower() in {item.lower() for item in recipe["accepted_sha1"]}
     modified_allowed = recipe.get("allow_modified_input") is True
@@ -366,10 +416,10 @@ def apply_recipe(
     for index, fingerprint in enumerate(recipe["fingerprints"]):
         _check_region(original, fingerprint, f"fingerprints[{index}]")
 
-    source_copy = recipe.get("source_copy")
+    source_copy = patch.get("source_copy")
     output = _apply_source_copy(original, source_copy) if source_copy else bytearray(original)
     occupied: list[tuple[int, int]] = []
-    for index, write in enumerate(recipe["writes"]):
+    for index, write in enumerate(patch["writes"]):
         offset, expected = _check_region(original, write, f"writes[{index}]")
         replacement = _hex(write.get("replacement_hex"), f"writes[{index}].replacement_hex")
         if len(replacement) != len(expected):
@@ -437,7 +487,7 @@ def apply_recipe(
 
     result = bytes(output)
     output_sha256 = _digest("sha256", result)
-    canonical_expected = recipe.get("canonical_output_sha256")
+    canonical_expected = patch.get("canonical_output_sha256")
     if (
         canonical
         and canonical_expected
@@ -476,7 +526,7 @@ def apply_recipe(
         "input_kind": "canonical" if canonical else "compatible-modified",
         "input_normalization": input_normalization,
         "output_sha256": output_sha256,
-        "writes": len(recipe["writes"]) if source_copy is None else len(source_copy["operations"]),
+        "writes": len(patch["writes"]) if source_copy is None else len(source_copy["operations"]),
         "level_cap_overrides": effective_overrides,
         "overflow_percent": configured_overflow_percent,
         "debug": configured_debug,

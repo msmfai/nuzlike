@@ -61,6 +61,34 @@ class PatcherTests(unittest.TestCase):
                         "disable_trainer_sight": 4
                     }
                 }
+            },
+            "debug_variant": {
+                "writes": [
+                    {
+                        "offset": 16,
+                        "expected_hex": "10111213",
+                        "replacement_hex": "b0b1b2b3"
+                    }
+                ],
+                "configurable": {
+                    "level_caps": [
+                        {"id": "brock", "offset": 20, "default": 20},
+                        {"id": "misty", "offset": 21, "default": 21}
+                    ],
+                    "overflow_percent": {
+                        "offset": 23, "default": 75, "minimum": 0, "maximum": 100
+                    },
+                    "debug_flags": {
+                        "offset": 22,
+                        "default": 0,
+                        "flags": {
+                            "infinite_health": 1,
+                            "maximum_damage": 2,
+                            "disable_trainer_sight": 4
+                        }
+                    }
+                },
+                "canonical_output_sha256": "0" * 64
             }
         }
         recipe.update(changes)
@@ -181,6 +209,7 @@ class PatcherTests(unittest.TestCase):
             "maximum_damage": False,
             "disable_trainer_sight": False,
         })
+        self.assertEqual(self.output.read_bytes()[16:20], bytes.fromhex("a0a1a2a3"))
         for name, mask in (
             ("infinite_health", 1),
             ("maximum_damage", 2),
@@ -194,7 +223,21 @@ class PatcherTests(unittest.TestCase):
                 }), encoding="utf-8")
                 result = apply_recipe(self.input, self.recipe, self.output, config_path=self.config)
                 self.assertEqual(self.output.read_bytes()[22], mask)
+                self.assertEqual(self.output.read_bytes()[16:20], bytes.fromhex("b0b1b2b3"))
                 self.assertTrue(result["debug"][name])
+
+    def test_debug_toggle_requires_instrumented_patch_variant(self) -> None:
+        self.write_recipe()
+        recipe = json.loads(self.recipe.read_text(encoding="utf-8"))
+        recipe.pop("debug_variant")
+        self.recipe.write_text(json.dumps(recipe), encoding="utf-8")
+        self.config.write_text(json.dumps({
+            "schema": 1,
+            "game": "red",
+            "debug": {"infinite_health": True},
+        }), encoding="utf-8")
+        with self.assertRaisesRegex(PatchError, "no opt-in debug patch variant"):
+            apply_recipe(self.input, self.recipe, self.output, config_path=self.config)
 
     def test_config_rejects_unknown_cap(self) -> None:
         self.write_recipe()
