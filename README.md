@@ -1,21 +1,23 @@
 ![Pokémon Emerald displaying the message "But no one came..."](branding/github-card.png)
 
-# NuzLike
+# NuzLike: A Self-Enforcing Pokémon Nuzlocke Without Grinding
 
-NuzLike is a roguelite twist on the Nuzlocke format for players who enjoy the
-team-building and risk but not the grinding. It turns each Pokémon story into a
-finite-resource run where progress comes from making good decisions with the
-team you find.
+NuzLike is a self-enforcing, no-grind Nuzlocke ROM hack for Pokémon Red, Blue,
+Yellow, Crystal, Emerald, FireRed, and LeafGreen. It keeps the team-building,
+permanent losses, and risk of a Nuzlocke run while removing manual rule tracking
+and repetitive wild-Pokémon grinding.
 
-The game enforces the rules for you, so there is no encounter spreadsheet or
-manual level-cap tracking.
+The result is a roguelite twist on the original Pokémon stories: each run has a
+finite supply of experience, and progress comes from making good decisions with
+the team you find. The game enforces encounters, level caps, permanent
+retirement, and full-party wipes for you.
 
 > [!WARNING]
 > NuzLike is alpha software. Not all features are tested, so please be prepared
 > to lose save games. All GitHub issues are appreciated and will be dealt with
 > promptly.
 
-## What changes
+## How the no-grind Nuzlocke works
 
 - Each area gives you one wild encounter, with uncaught species prioritised.
 - Wild Pokémon give no EXP. Trainers are the finite source of experience.
@@ -37,7 +39,7 @@ manual level-cap tracking.
 Level caps and capped-EXP sharing are configurable. Easy, Medium, and Hard cap
 sets are included.
 
-## Supported games
+## Supported Pokémon games
 
 NuzLike supports Pokémon Red, Blue, Yellow, Crystal, Emerald, FireRed, and
 LeafGreen. Gold and Silver are represented by Crystal; Ruby and Sapphire are
@@ -60,7 +62,7 @@ Common 512-byte copier headers are handled automatically when the underlying
 game is supported. Other revisions are rejected rather than patched
 speculatively.
 
-## Get started
+## Download and start a NuzLike run
 
 1. Download the patcher for Windows, macOS, Linux, or Android from the
    [latest release](https://github.com/msmfai/nuzlike/releases/latest).
@@ -75,7 +77,7 @@ you to approve the application. This is because the application is unknown and
 does not mean this project is a virus. Source build instructions are in
 [BUILDING.md](BUILDING.md).
 
-## Randomized runs
+## Randomized Nuzlocke runs
 
 NuzLike can apply an FVX settings string and seed before adding its own rules.
 The patcher records a manifest and log so the result can be reproduced. Random
