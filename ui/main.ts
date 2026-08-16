@@ -172,7 +172,7 @@ function render(): void {
           <p class="eyebrow">GENERATION I–III</p>
           <h1>NuzLike Patcher</h1>
         </div>
-        <span class="privacy">ROM-free · offline</span>
+        <span class="privacy">Runs offline</span>
       </header>
 
       <section class="intro">
