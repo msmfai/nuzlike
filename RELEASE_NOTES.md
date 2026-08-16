@@ -1,25 +1,24 @@
-# NuzLike alpha 2
+# NuzLike alpha 3
 
-This alpha release fixes malformed macOS application bundles from alpha 1. The
-macOS packages are now explicitly sealed and must pass strict bundle validation
-before they can be published.
+This release fixes encounter and experience regressions reported during Crystal
+playtesting, and applies the relevant protections across every supported game.
 
-The unified NuzLike patcher supports
-Pokémon Red, Blue, Yellow, Crystal, Emerald, FireRed, and LeafGreen, with
-optional Universal Pokémon Randomizer FVX settings-string composition.
+- Encounter selection now terminates when every locally available species has
+  already been caught.
+- A Pokémon's first trainer experience award can no longer corrupt its level.
+- Shared capped experience now uses the games' normal level-up path, including
+  move learning and evolution.
+- Level caps remain enforced after battle dialogue completes.
+- Generation I experience messages remain inside the battle text area.
 
-The alpha includes the complete declared NuzLike ruleset, configurable boss
-caps and capped-EXP sharing, independent debug switches, copier-header
-normalization, and native packages for Android, Windows, Linux, and macOS.
+The reproductions for these bugs are now permanent deterministic emulator tests
+covering Red, Blue, Yellow, Crystal, Emerald, FireRed, and LeafGreen where the
+mechanic applies. The public recipes were regenerated from the same production
+builds used by those tests.
 
-All declared mechanics pass deterministic headless-emulator scenarios in every
-applicable game. Recipe validation, input safety, configuration, randomizer
-composition, save persistence, and the public-source boundary are also tested.
-
-Human full-playthrough coverage is not yet complete. Keep your original backup
-untouched, create a new patched file, and use a separate save you are prepared
-to lose. Randomizer combinations, uncommon emulators, and original hardware may
-still expose progression blockers or presentation defects.
+NuzLike remains alpha software. Full-playthrough coverage is incomplete, so
+keep your original backup untouched, create a new patched file, and use a
+separate save you are prepared to lose. Bug reports are welcome.
 
 Packages are not yet signed by platform distribution identities or notarized.
 Verify downloads with the accompanying `SHA256SUMS` file and consult the README

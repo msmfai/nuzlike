@@ -11,8 +11,6 @@ import zlib
 from pathlib import Path
 from typing import Any
 
-from .emerald_analysis import EmeraldAnalysisError, analyse_emerald, load_emerald_template
-
 
 class PatchError(ValueError):
     """A recipe or input failed a safety check."""
@@ -177,26 +175,6 @@ def load_recipe(path: str | Path) -> dict[str, Any]:
         canonical_hash = debug_variant.get("canonical_output_sha256")
         if not isinstance(canonical_hash, str) or len(canonical_hash) != 64:
             raise PatchError("debug_variant.canonical_output_sha256 must be a SHA-256 string")
-    chapter_xp = recipe.get("emerald_chapter_xp")
-    if chapter_xp is not None:
-        expected = {
-            "schema", "template", "production_offset", "debug_offset",
-            "vanilla_offset", "budgets", "family_growth_groups",
-        }
-        if recipe["game"] != "emerald" or not isinstance(chapter_xp, dict) or set(chapter_xp) != expected:
-            raise PatchError("emerald_chapter_xp has unsupported or missing fields")
-        if chapter_xp.get("schema") != 1 or not isinstance(chapter_xp.get("template"), str):
-            raise PatchError("emerald_chapter_xp must use schema 1 and name a template")
-        _offset(chapter_xp.get("production_offset"), "emerald_chapter_xp.production_offset")
-        _offset(chapter_xp.get("debug_offset"), "emerald_chapter_xp.debug_offset")
-        _offset(chapter_xp.get("vanilla_offset"), "emerald_chapter_xp.vanilla_offset")
-        if (
-            not isinstance(chapter_xp.get("budgets"), list)
-            or len(chapter_xp["budgets"]) != 9
-            or not isinstance(chapter_xp.get("family_growth_groups"), list)
-            or len(chapter_xp["family_growth_groups"]) != 9
-        ):
-            raise PatchError("emerald_chapter_xp must contain nine analysis inputs")
     return recipe
 
 
@@ -505,39 +483,6 @@ def apply_recipe(
         output[debug_offset] = mask
         debug_flags_changed = mask != debug_entry["default"]
 
-    analysis_manifest: dict[str, Any] | None = None
-    chapter_xp = recipe.get("emerald_chapter_xp")
-    if chapter_xp is not None:
-        cap_ids = (
-            "roxanne", "brawly", "wattson", "flannery", "norman",
-            "winona", "tate_and_liza", "juan", "champion",
-        )
-        try:
-            cap_values = tuple(
-                cap_overrides.get(cap_id, declared_caps[cap_id]["default"])
-                for cap_id in cap_ids
-            )
-        except KeyError as error:
-            raise PatchError(f"Emerald chapter-XP recipe is missing cap {error.args[0]}") from error
-        template_path = Path(recipe_path).resolve().parent / chapter_xp["template"]
-        try:
-            template = load_emerald_template(template_path)
-            analysis_manifest, experience_tables = analyse_emerald(original, template, cap_values)
-        except EmeraldAnalysisError as error:
-            raise PatchError(f"Emerald chapter-XP analysis failed: {error}") from error
-        expected_budgets = [chapter["trainer_xp"] for chapter in analysis_manifest["chapters"]]
-        expected_growths = [
-            [family["growth_group"] for family in chapter["families"]]
-            for chapter in analysis_manifest["chapters"]
-        ]
-        if expected_budgets != chapter_xp["budgets"] or expected_growths != chapter_xp["family_growth_groups"]:
-            raise PatchError("Emerald chapter-XP recipe analysis inputs are stale")
-        experience_offset = chapter_xp["debug_offset" if enabled_debug else "production_offset"]
-        experience_end = experience_offset + len(experience_tables)
-        if experience_end > len(output):
-            raise PatchError("generated Emerald experience tables extend beyond the output")
-        output[experience_offset:experience_end] = experience_tables
-
     _repair_cartridge_checksum(output, recipe["game"])
 
     result = bytes(output)
@@ -574,14 +519,6 @@ def apply_recipe(
         if temporary_name is not None:
             Path(temporary_name).unlink(missing_ok=True)
 
-    analysis_output: str | None = None
-    if analysis_manifest is not None:
-        analysis_path = destination.with_suffix(destination.suffix + ".analysis.json")
-        analysis_path.write_text(
-            json.dumps(analysis_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
-        analysis_output = str(analysis_path)
-
     return {
         "recipe": recipe["id"],
         "game": recipe["game"],
@@ -593,9 +530,5 @@ def apply_recipe(
         "level_cap_overrides": effective_overrides,
         "overflow_percent": configured_overflow_percent,
         "debug": configured_debug,
-        "analysis": analysis_output,
-        "experience_tables_sha256": (
-            analysis_manifest["experience_tables_sha256"] if analysis_manifest else None
-        ),
         "output": str(destination),
     }
