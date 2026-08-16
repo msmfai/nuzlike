@@ -4,16 +4,30 @@ name: app-builds
 
 on:
   push:
+    tags:
+      - "*"
   pull_request:
+    paths:
+      - "package-lock.json"
+      - "package.json"
+      - "src/**"
+      - "src-tauri/**"
+      - "tools/prepare_*_fvx.py"
+      - ".github/workflows/build-apps.yml"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: app-builds-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   source-checks:
     name: Test public source and history
     runs-on: ubuntu-22.04
+    if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,6 +52,8 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
+          cache-dependency-path: .fvx-source/**/*.gradle*
       - name: Build and test FVX bridge
         run: .fvx-source/gradlew -p .fvx-source :random:jar :random:nuzlikeBridgeTest
       - uses: actions/upload-artifact@v7
@@ -101,6 +117,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
       - name: Install Linux system libraries
         if: runner.os == 'Linux'
         run: |
@@ -182,6 +202,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust_target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: android-${{ matrix.rust_target }}
       - run: npm ci
       - name: Initialize Android project
         run: npm run android:init -- --ci
@@ -204,6 +228,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs: [source-checks, desktop, android]
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
