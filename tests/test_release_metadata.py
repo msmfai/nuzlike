@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ALPHA_VERSION = "0.1.0-alpha.3"
+ALPHA_VERSION = "0.1.0-alpha.4"
 
 
 class ReleaseMetadataTests(unittest.TestCase):
