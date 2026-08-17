@@ -25,4 +25,4 @@ __all__ = [
     "repair_cartridge_checksum",
     "semantic_composition_rules",
 ]
-__version__ = "0.1.0-alpha.4"
+__version__ = "0.1.0-alpha.5"

@@ -1,6 +1,6 @@
 [package]
 name = "nuzlike-patcher-app"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 description = "Cross-platform NuzLike patcher"
 authors = ["NuzLike contributors"]
 license = "GPL-3.0-or-later"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuzlike-patcher"
-version = "0.1.0a3"
+version = "0.1.0a5"
 description = "Structured patcher for NuzLike"
 readme = "README.md"
 requires-python = ">=3.11"
