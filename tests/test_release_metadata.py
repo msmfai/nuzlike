@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ALPHA_VERSION = "0.1.0-alpha.4"
+ALPHA_VERSION = "0.1.0-alpha.5"
 
 
 class ReleaseMetadataTests(unittest.TestCase):
@@ -28,7 +28,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertEqual(package_lock["packages"][""]["version"], ALPHA_VERSION)
         self.assertEqual(cargo["package"]["version"], ALPHA_VERSION)
         self.assertEqual(tauri["version"], ALPHA_VERSION)
-        self.assertEqual(python["project"]["version"], "0.1.0a3")
+        self.assertEqual(python["project"]["version"], "0.1.0a5")
         self.assertIn(f'__version__ = "{ALPHA_VERSION}"', init)
 
     def test_release_workflow_builds_the_declared_matrix_and_checksums_it(self) -> None:
