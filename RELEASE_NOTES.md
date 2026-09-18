@@ -37,6 +37,11 @@ Supported games remain Red, Blue, Yellow, Crystal, Emerald, FireRed and LeafGree
 
 ## Known limitations
 
+Android APKs are not yet signed for installation. Android users should wait for
+signed builds; the current APKs cannot be installed as-is. Desktop packages are
+not developer-signed or notarized, so your operating system may show an
+unverified-publisher warning.
+
 NuzLike is still alpha software. Full playthroughs, upgrading existing saves and
 all combinations of randomizer settings have not been fully tested. Keep backups
 and use a save you are prepared to lose.
