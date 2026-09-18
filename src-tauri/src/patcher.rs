@@ -648,21 +648,7 @@ pub fn apply(
             .accepted_sha1
             .iter()
             .any(|hash| hash.eq_ignore_ascii_case(&sha1))
-            || (recipe.allow_modified_input
-                && !recipe.fingerprints.is_empty()
-                && recipe
-                    .fingerprints
-                    .iter()
-                    .enumerate()
-                    .all(|(index, region)| {
-                        check_region(
-                            data,
-                            region.offset,
-                            &region.expected_hex,
-                            &format!("fingerprints[{index}]"),
-                        )
-                        .is_ok()
-                    }))
+
     };
     let (original, input_normalization) = if supported(supplied) {
         (supplied, "none")
@@ -680,8 +666,8 @@ pub fn apply(
         .accepted_sha1
         .iter()
         .any(|hash| hash.eq_ignore_ascii_case(&input_sha1));
-    if !canonical && !recipe.allow_modified_input {
-        return Err(format!("unsupported input SHA-1: {input_sha1}"));
+    if !canonical {
+        return Err(format!("unsupported input SHA-1: {input_sha1}; use a clean supported ROM or the verified randomizer composition workflow"));
     }
     for (index, region) in recipe.fingerprints.iter().enumerate() {
         check_region(
@@ -936,8 +922,35 @@ mod tests {
         assert!(
             apply(&recipe, None, &data)
                 .unwrap_err()
-                .contains("writes[0] mismatch")
+                .contains("unsupported input SHA-1")
         );
+    }
+
+    #[test]
+    fn header_fingerprints_and_legacy_opt_in_never_authorize_modified_inputs() {
+        let (data, recipe_json) = fixture();
+        let mut value: serde_json::Value = serde_json::from_str(&recipe_json).unwrap();
+        value["allow_modified_input"] = serde_json::json!(true);
+        value["writes"] = serde_json::json!([]);
+        value["source_copy"] = serde_json::json!({
+            "encoding": "source-copy-v1", "output_size": data.len(),
+            "literal_bytes": 0,
+            "operations": [{"source_offset": 0, "length": data.len()}]
+        });
+        let recipe = parse_recipe(&value.to_string()).unwrap();
+        let mut fabricated = vec![0; data.len()];
+        fabricated[..4].copy_from_slice(&data[..4]);
+        let mut modified = data.clone();
+        modified[40] ^= 1;
+        for input in [fabricated, modified] {
+            for header_len in [0, COPIER_HEADER_SIZE] {
+                let mut supplied = vec![0; header_len];
+                supplied.extend_from_slice(&input);
+                assert!(apply(&recipe, None, &supplied).unwrap_err()
+                    .contains("unsupported input SHA-1"));
+            }
+        }
+        assert!(apply(&recipe, None, &data).is_ok());
     }
 
     #[test]

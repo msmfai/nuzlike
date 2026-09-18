@@ -506,7 +506,7 @@ mod tests {
         let mut randomized = clean.clone();
         randomized[600] = 1;
         let recipe = parse_recipe(&serde_json::json!({
-            "schema":1, "id":"test", "game":"crystal", "accepted_sha1":["0".repeat(40)],
+            "schema":1, "id":"test", "game":"crystal", "accepted_sha1":[format!("{:x}", sha1::Sha1::digest(&clean))],
             "fingerprints":[], "writes":[{"offset":700,"expected_hex":"0000","replacement_hex":"0102"}]
         }).to_string()).unwrap();
         let report = analyze(&clean, &randomized, &manifest(&clean, &randomized), &recipe).unwrap();
@@ -532,7 +532,7 @@ mod tests {
         let mut randomized = clean.clone();
         randomized[701] = 1;
         let recipe = parse_recipe(&serde_json::json!({
-            "schema":1, "id":"test", "game":"emerald", "accepted_sha1":["0".repeat(40)],
+            "schema":1, "id":"test", "game":"emerald", "accepted_sha1":[format!("{:x}", sha1::Sha1::digest(&clean))],
             "fingerprints":[], "writes":[{"offset":700,"expected_hex":"0000","replacement_hex":"0102"}]
         }).to_string()).unwrap();
         let json = manifest(&clean, &randomized);
@@ -560,7 +560,7 @@ mod tests {
         randomized[600] = 1;
         let recipe = parse_recipe(
             &serde_json::json!({
-                "schema":1, "id":"test", "game":"emerald", "accepted_sha1":["0".repeat(40)],
+                "schema":1, "id":"test", "game":"emerald", "accepted_sha1":[format!("{:x}", sha1::Sha1::digest(&clean))],
                 "allow_modified_input":true,
                 "randomizer_layout":{"schema":1,"mode":"identity"},
                 "fingerprints":[{"offset":0,"expected_hex":"0000"}],
@@ -597,7 +597,7 @@ mod tests {
         randomized[701] = 9;
         let recipe = parse_recipe(
             &serde_json::json!({
-                "schema":1, "id":"test", "game":"emerald", "accepted_sha1":["0".repeat(40)],
+                "schema":1, "id":"test", "game":"emerald", "accepted_sha1":[format!("{:x}", sha1::Sha1::digest(&clean))],
                 "allow_modified_input":true,
                 "randomizer_layout":{"schema":1,"mode":"identity"},
                 "fingerprints":[{"offset":0,"expected_hex":"0000"}],

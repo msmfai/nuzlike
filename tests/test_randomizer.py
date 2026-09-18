@@ -257,6 +257,50 @@ class RandomizerIntegrationTests(unittest.TestCase):
                 recipe_path=self.recipe,
             )
 
+    def test_composition_rejects_a_changed_clean_rom_even_with_a_rehashed_manifest(self) -> None:
+        self.write_recipe()
+        self.write_manifest(self.clean_bytes)
+        changed = bytearray(self.clean_bytes)
+        changed[600] ^= 0xFF  # Outside both fingerprint and patch writes.
+        self.clean.write_bytes(changed)
+        output = self.root / "composed.gbc"
+        report = self.root / "composed.json"
+        for rehash, message in ((False, "does not match the clean input ROM"),
+                                (True, "unsupported input SHA-1")):
+            with self.subTest(rehashed=rehash):
+                if rehash:
+                    manifest = json.loads(self.manifest.read_text())
+                    manifest["input_sha256"] = hashlib.sha256(changed).hexdigest()
+                    self.manifest.write_text(json.dumps(manifest))
+                with self.assertRaisesRegex(PatchError, message):
+                    compose_randomized_rom(
+                        clean_rom=self.clean, randomized_rom=self.randomized,
+                        manifest_path=self.manifest, recipe_path=self.recipe,
+                        output_rom=output, output_manifest=report,
+                    )
+                self.assertFalse(output.exists())
+                self.assertFalse(report.exists())
+                self.assertEqual(self.clean.read_bytes(), bytes(changed))
+                self.assertEqual(self.randomized.read_bytes(), self.clean_bytes)
+
+    def test_composition_never_overwrites_an_existing_rom_or_manifest(self) -> None:
+        self.write_recipe()
+        self.write_manifest(self.clean_bytes)
+        for existing_name in ("composed.gbc", "composed.json"):
+            with self.subTest(existing=existing_name), tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "composed.gbc"
+                report = Path(temporary) / "composed.json"
+                existing = Path(temporary) / existing_name
+                existing.write_bytes(b"previous evidence")
+                with self.assertRaisesRegex(PatchError, "refusing to overwrite"):
+                    compose_randomized_rom(
+                        clean_rom=self.clean, randomized_rom=self.randomized,
+                        manifest_path=self.manifest, recipe_path=self.recipe,
+                        output_rom=output, output_manifest=report,
+                    )
+                self.assertEqual(existing.read_bytes(), b"previous evidence")
+                self.assertEqual(sorted(p.name for p in Path(temporary).iterdir()), [existing_name])
+
     def test_source_copy_xor_operations_resolve_to_output_ranges(self) -> None:
         self.write_recipe()
         recipe = json.loads(self.recipe.read_text(encoding="utf-8"))

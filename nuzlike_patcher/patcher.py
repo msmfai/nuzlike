@@ -317,23 +317,12 @@ def repair_cartridge_checksum(output: bytearray, game: str) -> None:
     _repair_cartridge_checksum(output, game)
 
 
-def _fingerprints_match(data: bytes, recipe: dict[str, Any]) -> bool:
-    try:
-        for index, fingerprint in enumerate(recipe["fingerprints"]):
-            _check_region(data, fingerprint, f"fingerprints[{index}]")
-    except PatchError:
-        return False
-    return True
-
-
 def _supported_input(data: bytes, recipe: dict[str, Any]) -> bool:
-    input_sha1 = _digest("sha1", data).lower()
-    canonical = input_sha1 in {item.lower() for item in recipe["accepted_sha1"]}
-    return canonical or (
-        recipe.get("allow_modified_input") is True
-        and bool(recipe["fingerprints"])
-        and _fingerprints_match(data, recipe)
-    )
+    # Header fingerprints identify a cartridge; they cannot validate executable
+    # code. Modified ROMs must use the verified clean-ROM composition pipeline.
+    return _digest("sha1", data).lower() in {
+        item.lower() for item in recipe["accepted_sha1"]
+    }
 
 
 def _normalize_input(data: bytes, recipe: dict[str, Any]) -> tuple[bytes, str]:
@@ -407,11 +396,11 @@ def apply_recipe(
     debug_entry = patch_configurable.get("debug_flags")
     input_sha1 = _digest("sha1", original)
     canonical = input_sha1.lower() in {item.lower() for item in recipe["accepted_sha1"]}
-    modified_allowed = recipe.get("allow_modified_input") is True
-    if not canonical and not modified_allowed:
-        raise PatchError(f"unsupported input SHA-1: {input_sha1}")
-    if not canonical and not recipe["fingerprints"]:
-        raise PatchError("modified-input mode requires at least one invariant fingerprint")
+    if not canonical:
+        raise PatchError(
+            f"unsupported input SHA-1: {input_sha1}; use a clean supported ROM "
+            "or the verified randomizer composition workflow"
+        )
 
     for index, fingerprint in enumerate(recipe["fingerprints"]):
         _check_region(original, fingerprint, f"fingerprints[{index}]")
