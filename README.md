@@ -111,3 +111,9 @@ Nintendo, Game Freak, Creatures, or The Pokémon Company.
 <p align="center">
   <img src="assets/juno-logo.png" alt="Juno logo" width="720">
 </p>
+
+Direct patching requires an exact supported clean ROM (an optional 512-byte copier
+header is removed). Header fingerprints alone do not authorize modified inputs,
+even with older recipes that set `allow_modified_input`. Randomized games must
+use the verified FVX composition workflow, which validates the clean source and
+randomizer manifest before combining changes.

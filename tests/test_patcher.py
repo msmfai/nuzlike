@@ -126,14 +126,30 @@ class PatcherTests(unittest.TestCase):
             apply_recipe(self.input, self.recipe, self.output)
         self.assertFalse(self.output.exists())
 
-    def test_modified_input_preserves_randomized_region(self) -> None:
+    def test_modified_input_requires_verified_composition_even_with_legacy_opt_in(self) -> None:
         randomized = bytearray(self.data)
         randomized[40:44] = b"RND!"
         self.input.write_bytes(randomized)
-        self.write_recipe()
-        result = apply_recipe(self.input, self.recipe, self.output)
-        self.assertEqual(self.output.read_bytes()[40:44], b"RND!")
-        self.assertEqual(result["input_kind"], "compatible-modified")
+        self.write_recipe(allow_modified_input=True)
+        with self.assertRaisesRegex(PatchError, "unsupported input SHA-1"):
+            apply_recipe(self.input, self.recipe, self.output)
+        self.assertFalse(self.output.exists())
+
+    def test_header_and_write_preimages_cannot_authorize_fabricated_source_copy(self) -> None:
+        self.write_recipe(writes=[], source_copy={
+            "encoding": "source-copy-v1", "output_size": len(self.data),
+            "literal_bytes": 0,
+            "operations": [{"source_offset": 0, "length": len(self.data)}],
+        })
+        fabricated = bytearray(len(self.data))
+        fabricated[:4] = self.data[:4]
+        for prefix in (b"", bytes(512)):
+            with self.subTest(copier_header=bool(prefix)):
+                self.input.write_bytes(prefix + fabricated)
+                self.output.write_bytes(b"existing output")
+                with self.assertRaisesRegex(PatchError, "unsupported input SHA-1"):
+                    apply_recipe(self.input, self.recipe, self.output)
+                self.assertEqual(self.output.read_bytes(), b"existing output")
 
     def test_source_copy_recipe_relocates_and_xors_without_embedding_target(self) -> None:
         delta = bytes(value ^ replacement for value, replacement in zip(self.data[16:20], b"QLCK"))
