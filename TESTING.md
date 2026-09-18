@@ -47,3 +47,24 @@ Automation cannot cover every emulator, flash cartridge, randomizer setting, or
 route through seven games. Alpha testers should report full-playthrough results
 and attach a save or save state from before a defect when it is safe to do so.
 Never attach a ROM to an issue.
+
+## Browser acceptance and output parity
+
+`npm run web:build && npm run web:test` exercises the built offline HTML in
+Chromium, including desktop/mobile layouts, unsupported files, oversized files
+and operation with network requests blocked. Public CI uses synthetic input only.
+For a supplied Chromium installation, set `NUZLIKE_CHROMIUM` to its executable.
+
+For local seven-game parity, run `python3 tools/prepare_web_matrix.py --help`.
+Supply all seven owned clean ROMs, the pinned FVX JAR, Java, and a private output
+directory. It generates CLI reference outputs for default settings, custom
+settings, debug cheats, copier headers and real FVX composition. Set
+`NUZLIKE_WEB_MATRIX=/absolute/path/to/matrix.json` when running `npm run web:test`.
+The browser suite downloads each result and compares SHA-256 with the CLI,
+repeats builds to catch detached input buffers, and rejects tampered FVX
+manifests. These tests do not substitute for gameplay acceptance evidence.
+
+Remaining browser coverage gaps: physical mobile devices, mobile file-manager
+handling of offline HTML, low-memory devices, and non-Chromium engines. Desktop
+mobile emulation checks layout and interaction, not actual iOS or Android memory
+limits. No claim of complete playthrough coverage follows from patch parity.

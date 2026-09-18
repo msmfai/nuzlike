@@ -13,7 +13,9 @@
     "android:init": "npm run icons && tauri android init",
     "android:build": "npm run icons && tauri android build",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "check": "npm run ui:build && npm run test:rust"
+    "check": "npm run ui:build && npm run test:rust",
+    "web:build": "python3 tools/build_web.py",
+    "web:test": "node --test tests/web.test.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
@@ -21,6 +23,7 @@
     "@tauri-apps/plugin-fs": "2.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
     "@tauri-apps/cli": "2.11.4",
     "typescript": "7.0.2",
     "vite": "8.2.0"

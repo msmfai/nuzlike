@@ -44,7 +44,7 @@ GPL_MARKERS = (
     "Everyone is permitted to copy and distribute verbatim copies",
 )
 LICENSED_SOURCE_ROOTS = {"nuzlike_patcher", "src-tauri", "tests", "tools", "ui"}
-LICENSED_SOURCE_SUFFIXES = {".css", ".py", ".rs", ".ts"}
+LICENSED_SOURCE_SUFFIXES = {".css", ".py", ".rs", ".ts", ".mjs"}
 MAX_RECIPE_FILE_BYTES = 8_000_000
 MAX_TRANSFORMED_BYTES = 2 * 1024 * 1024
 MAX_TRANSFORMED_FRACTION = 0.10

@@ -64,24 +64,39 @@ speculatively.
 
 ## Download and start a NuzLike run
 
-1. Download the patcher for Windows, macOS, Linux, or Android from the
-   [latest release](https://github.com/msmfai/nuzlike/releases/latest).
+1. Open the [browser patcher](https://msmfai.github.io/nuzlike/).
 2. Select your original game backup.
 3. Choose a level-cap preset or customise the caps.
-4. Save the patched game as a new file and begin a fresh save.
+4. Select **Build patched copy**, download the result, and begin a fresh save.
 
-The patcher does not change the original game backup you select. It saves the
-NuzLike version as a separate file. Alpha packages are not yet signed by
-platform distribution identities or notarized, so your operating system may ask
-you to approve the application. This is because the application is unknown and
-does not mean this project is a virus. Source build instructions are in
-[BUILDING.md](BUILDING.md).
+Your ROM stays on your device. The browser verifies and patches it locally;
+there is no upload and no account or installation is needed. Desktop and mobile
+browsers use the same patching engine as the native application.
+
+For offline use, download the [self-contained HTML patcher](https://msmfai.github.io/nuzlike/nuzlike-0.1.0-alpha.7-offline.html)
+and open it in your browser. It includes everything needed to patch all seven
+games without an internet connection. Some mobile file managers preview HTML
+instead of opening a browser; use the hosted patcher if that happens.
+
+Native desktop packages remain an alternative in
+[Releases](https://github.com/msmfai/nuzlike/releases). They are not
+developer-signed or notarized. The current Android APKs are unsigned and cannot
+be installed as-is; Android players can use the browser patcher.
+Source build instructions are in [BUILDING.md](BUILDING.md).
 
 ## Randomized Nuzlocke runs
 
-NuzLike can apply an FVX settings string and seed before adding its own rules.
-The patcher records a manifest and log so the result can be reproduced. Random
-Trainer parties do not change your selected level caps.
+The native patcher can run FVX from a settings string and seed, then add NuzLike.
+It saves the result with a manifest and log for reproducibility.
+
+The browser supports importing FVX output; it does **not** run the Java
+randomizer itself. First create a randomized ROM and its `.fvx.json` manifest
+with the NuzLike FVX bridge (instructions in [BUILDING.md](BUILDING.md#fvx-files-for-the-browser)).
+Select your clean backup in step 1, enable **Use an FVX-randomized backup**, then
+choose the randomized ROM and its matching manifest. Download both the final
+ROM and combined manifest. Keep the original FVX log from the generation step.
+An ordinary randomized ROM without that manifest cannot be used in this flow.
+Random Trainer parties do not change your selected level caps.
 
 Randomizer compatibility is tested across every supported game, but the full
 combination of possible FVX options is too large to exhaust during alpha.

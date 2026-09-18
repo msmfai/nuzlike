@@ -2,7 +2,10 @@
 
 // Copyright (C) 2026 NuzLike contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+#[cfg(feature = "desktop")]
 mod fvx;
+#[cfg(feature = "web")]
+mod web;
 mod patcher;
 mod randomizer;
 
@@ -11,7 +14,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+#[cfg(feature = "desktop")]
 use tauri::ipc::{InvokeBody, Request, Response};
+#[cfg(feature = "desktop")]
 use tauri::{AppHandle, Manager};
 
 use patcher::{UserConfig, apply, inspect, parse_config, parse_recipe};
@@ -86,12 +91,14 @@ struct RandomizerCompositionEnvelope {
     config: Value,
 }
 
+#[cfg(feature = "desktop")]
 #[derive(Debug, Deserialize)]
 struct FvxEnvelope {
     settings: String,
     seed: String,
 }
 
+#[cfg(feature = "desktop")]
 fn raw_body<'a>(request: &'a Request<'a>) -> Result<&'a [u8], String> {
     match request.body() {
         InvokeBody::Raw(data) => Ok(data),
@@ -221,7 +228,7 @@ fn recipe_id(recipe: &patcher::Recipe) -> &str {
     recipe.id()
 }
 
-#[tauri::command]
+#[cfg_attr(feature = "desktop", tauri::command)]
 fn get_catalog() -> Result<Catalog, String> {
     let manifest = manifest()?;
     let expected_games: BTreeSet<_> = manifest.canonical_inputs.keys().cloned().collect();
@@ -268,14 +275,23 @@ fn get_catalog() -> Result<Catalog, String> {
     Ok(Catalog { schema: 1, games })
 }
 
+#[cfg(feature = "desktop")]
 #[tauri::command]
 fn inspect_rom(request: Request<'_>) -> Result<patcher::InspectResult, String> {
-    Ok(inspect(raw_body(&request)?))
+    inspect_rom_bytes(raw_body(&request)?)
 }
 
+fn inspect_rom_bytes(body: &[u8]) -> Result<patcher::InspectResult, String> {
+    Ok(inspect(body))
+}
+
+#[cfg(feature = "desktop")]
 #[tauri::command]
 fn patch_rom(request: Request<'_>) -> Result<Response, String> {
-    let body = raw_body(&request)?;
+    patch_rom_bytes(raw_body(&request)?).map(Response::new)
+}
+
+fn patch_rom_bytes(body: &[u8]) -> Result<Vec<u8>, String> {
     if body.len() < 4 {
         return Err("patch request is truncated".into());
     }
@@ -308,12 +324,16 @@ fn patch_rom(request: Request<'_>) -> Result<Response, String> {
     response.extend_from_slice(&report_size.to_be_bytes());
     response.extend_from_slice(&report);
     response.extend_from_slice(&result.bytes);
-    Ok(Response::new(response))
+    Ok(response)
 }
 
+#[cfg(feature = "desktop")]
 #[tauri::command]
 fn analyze_randomized_rom(request: Request<'_>) -> Result<Response, String> {
-    let body = raw_body(&request)?;
+    analyze_randomized_rom_bytes(raw_body(&request)?).map(Response::new)
+}
+
+fn analyze_randomized_rom_bytes(body: &[u8]) -> Result<Vec<u8>, String> {
     if body.len() < 4 {
         return Err("randomizer analysis request is truncated".into());
     }
@@ -344,13 +364,16 @@ fn analyze_randomized_rom(request: Request<'_>) -> Result<Response, String> {
         &recipe,
     )?;
     serde_json::to_vec(&report)
-        .map(Response::new)
         .map_err(|error| format!("cannot encode randomizer analysis: {error}"))
 }
 
+#[cfg(feature = "desktop")]
 #[tauri::command]
 fn compose_randomized_rom(request: Request<'_>) -> Result<Response, String> {
-    let body = raw_body(&request)?;
+    compose_randomized_rom_bytes(raw_body(&request)?).map(Response::new)
+}
+
+fn compose_randomized_rom_bytes(body: &[u8]) -> Result<Vec<u8>, String> {
     if body.len() < 4 {
         return Err("randomizer composition request is truncated".into());
     }
@@ -393,9 +416,10 @@ fn compose_randomized_rom(request: Request<'_>) -> Result<Response, String> {
     response.extend_from_slice(&report_size.to_be_bytes());
     response.extend_from_slice(&report);
     response.extend_from_slice(&result.bytes);
-    Ok(Response::new(response))
+    Ok(response)
 }
 
+#[cfg(feature = "desktop")]
 #[tauri::command]
 fn randomize_with_fvx(app: AppHandle, request: Request<'_>) -> Result<Response, String> {
     let body = raw_body(&request)?;
@@ -438,6 +462,7 @@ fn randomize_with_fvx(app: AppHandle, request: Request<'_>) -> Result<Response, 
     Ok(Response::new(response))
 }
 
+#[cfg(feature = "desktop")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -458,6 +483,35 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn binary_commands_reject_truncated_and_overflowing_envelopes() {
+        for command in [patch_rom_bytes, analyze_randomized_rom_bytes, compose_randomized_rom_bytes] {
+            for body in [vec![], vec![0; 3], vec![255; 4], vec![0, 0, 0, 2, b'{']] {
+                assert!(command(&body).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn composition_rejects_clean_size_outside_request() {
+        let metadata = serde_json::to_vec(&serde_json::json!({
+            "recipe_id": "red", "manifest_json": "{}", "clean_size": 1024, "config": {}
+        })).unwrap();
+        let mut body = (metadata.len() as u32).to_be_bytes().to_vec();
+        body.extend(metadata);
+        for command in [analyze_randomized_rom_bytes, compose_randomized_rom_bytes] {
+            assert!(command(&body).unwrap_err().contains("clean ROM is truncated"));
+        }
+    }
+
+    #[test]
+    fn patch_command_rejects_unknown_recipe_before_applying() {
+        let metadata = br#"{"recipe_id":"not-a-release","config":{}}"#;
+        let mut body = (metadata.len() as u32).to_be_bytes().to_vec();
+        body.extend(metadata);
+        assert!(patch_rom_bytes(&body).unwrap_err().contains("unknown release recipe"));
+    }
 
     #[test]
     fn embeds_one_parseable_recipe_for_every_supported_game() {
