@@ -210,3 +210,6 @@ footer { display: flex; justify-content: space-between; gap: 20px; padding-top: 
   .caps { grid-template-columns: 1fr; }
   .preset-options { grid-template-columns: 1fr; }
 }
+
+#downloads { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; overflow-wrap: anywhere; }
+a { color: #aebfff; }

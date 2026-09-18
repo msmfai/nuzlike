@@ -1,0 +1,71 @@
+name: web-patcher
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Publish this tested main-branch build to GitHub Pages
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: cargo install wasm-bindgen-cli --version 0.2.121 --locked
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --no-default-features --features web
+      - run: python -m unittest discover -s tests -v
+      - run: python tools/release_audit.py --tree .
+      - run: npm run web:build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run web:test
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuzlike-offline-patcher
+          path: |
+            ui-dist/*-offline.html
+            ui-dist/version.json
+          if-no-files-found: error
+      - uses: actions/upload-pages-artifact@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+        with:
+          path: ui-dist
+
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy tested browser patcher
+        id: deployment
+        uses: actions/deploy-pages@v4

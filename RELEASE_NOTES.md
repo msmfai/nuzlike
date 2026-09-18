@@ -1,7 +1,17 @@
 # NuzLike alpha 7
 
-Alpha 7 fixes several battle and experience problems and makes patching more
-reliable by requiring an original, supported game backup.
+Alpha 7 brings NuzLike to your browser, fixes several battle and experience
+problems, and requires an original, supported game backup.
+
+## Patch in your browser
+
+Open the [NuzLike patcher](https://msmfai.github.io/nuzlike/), choose your game
+backup and challenge settings, then download a patched copy. No installation,
+account, or ROM upload is needed. Your original backup stays unchanged.
+
+You can also download the self-contained HTML patcher from that page for
+offline use. All seven games, difficulty presets, custom caps, EXP sharing and
+debug options are included.
 
 ## Gameplay fixes
 
@@ -22,9 +32,12 @@ Use an untouched backup of a [supported game version](README.md#supported-pokém
 The patcher now rejects modified ROMs that older versions could accept, including
 ROMs already patched with NuzLike. Supported copier-header backups still work.
 
-For a randomized run, start with your original backup and use the patcher's
-built-in FVX randomizer workflow. Do not select an already randomized ROM as
-though it were an original game.
+For a randomized run, the browser accepts a randomized ROM and matching manifest
+created by the NuzLike FVX bridge, alongside your clean backup. It checks those
+files before combining them with NuzLike and offers a combined manifest to save
+with the result. The browser does not run Java FVX itself; built-in generation
+from a seed and settings string remains available in the native desktop patcher.
+See the [randomized-run instructions](README.md#randomized-nuzlocke-runs).
 
 ## Updating from an earlier version
 
@@ -37,8 +50,8 @@ Supported games remain Red, Blue, Yellow, Crystal, Emerald, FireRed and LeafGree
 
 ## Known limitations
 
-Android APKs are not yet signed for installation. Android users should wait for
-signed builds; the current APKs cannot be installed as-is. Desktop packages are
+Android players can use the browser patcher. The current Android APKs are
+unsigned and cannot be installed as-is. Desktop packages are
 not developer-signed or notarized, so your operating system may show an
 unverified-publisher warning.
 
