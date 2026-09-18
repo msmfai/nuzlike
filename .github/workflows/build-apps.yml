@@ -195,6 +195,9 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: android-actions/setup-android@v3
+        with:
+          # The action's default includes the removed legacy "tools" package.
+          packages: platform-tools
       - name: Install Android NDK
         run: |
           sdkmanager "ndk;27.2.12479018"
